@@ -31,6 +31,8 @@ import (
 	"path/filepath"
 
 	"golang.org/x/tools/blog/atom"
+	"net/url"
+	"time"
 )
 
 var dirRoot string
@@ -69,17 +71,19 @@ func catalogRoot(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if fi.IsDir() {
-		return catalogFeed(w, req, dirPath)
+		return catalogFeed(w, req, dirPath, fi.ModTime())
 	}
 	return writeFileTo(w, dirPath)
 }
 
-func catalogFeed(w io.Writer, r *http.Request, dirPath string) error {
+func catalogFeed(w io.Writer, r *http.Request, dirPath string, updatedTime time.Time) error {
 	fis, err := ioutil.ReadDir(dirPath)
 	if err != nil {
 		return err
 	}
 	feed := &atom.Feed{Title: "OPDS Catalog: " + r.URL.Path}
+	feed.ID = base64.StdEncoding.EncodeToString([]byte(r.URL.EscapedPath()))
+	feed.Updated = atom.Time(updatedTime)
 	if len(fis) < 1 {
 		return writeFeedTo(w, feed)
 	}
@@ -95,9 +99,9 @@ func catalogFeed(w io.Writer, r *http.Request, dirPath string) error {
 func FeedEntries(f *atom.Feed, fis []os.FileInfo, r *http.Request) error {
 	for _, fi := range fis {
 		e := &atom.Entry{Title: fi.Name()}
-		encoded := base64.StdEncoding.EncodeToString([]byte(path.Join(r.URL.Path, fi.Name())))
-		e.ID = encoded
-		l := atom.Link{Title: fi.Name(), Href: path.Join(r.URL.EscapedPath(), fi.Name())}
+		e.ID = base64.StdEncoding.EncodeToString([]byte(path.Join(r.URL.EscapedPath(), url.PathEscape(fi.Name()))))
+		e.Updated = atom.Time(fi.ModTime())
+		l := atom.Link{Title: fi.Name(), Href: path.Join(r.URL.EscapedPath(), url.PathEscape(fi.Name()))}
 		if !fi.IsDir() {
 			l.Rel = "http://opds-spec.org/acquisition"
 		}
@@ -113,7 +117,7 @@ func FeedEntries(f *atom.Feed, fis []os.FileInfo, r *http.Request) error {
 }
 
 func writeFeedTo(w io.Writer, feed *atom.Feed) error {
-	io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+	io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
 	enc := xml.NewEncoder(w)
 	enc.Indent("  ", "    ")
 	if err := enc.Encode(feed); err != nil {
@@ -144,14 +148,15 @@ func getLinkType(lPath string) (string, error) {
 	if !fi.IsDir() {
 		return mime.TypeByExtension(filepath.Ext(lPath)), nil
 	}
-	files, err := ioutil.ReadDir(lPath)
+	fis, err := ioutil.ReadDir(lPath)
 	if err != nil {
 		return "", err
 	}
-	for _, file := range files {
-		if !file.IsDir() {
+	for _, fi := range fis {
+		if !fi.IsDir() {
 			return "application/atom+xml;profile=opds-catalog;kind=acquisition", nil
 		}
 	}
 	return "application/atom+xml;profile=opds-catalog;kind=navigation", nil
 }
+
