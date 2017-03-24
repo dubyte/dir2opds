@@ -18,39 +18,181 @@
 package main
 
 import (
+	"bufio"
 	"encoding/xml"
-	"encoding/base64"
 	"flag"
 	"io"
 	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
-	"path"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/tools/blog/atom"
-	"net/url"
-	"time"
 )
 
-var dirRoot string
+type AcquisitionFeed struct {
+	*atom.Feed
+	Dc   string `xml:"xmlns:dc,attr"`
+	Opds string `xml:"xmlns:opds,attr"`
+}
+
+type CatalogFeed atom.Feed
+
+var (
+	port,
+	dirRoot,
+	author,
+	authorUri,
+	authorEmail string
+	updated atom.TimeStr
+)
 
 func init() {
 	mime.AddExtensionType(".mobi", "application/x-mobipocket-ebook")
 	mime.AddExtensionType(".epub", "application/epub+zip")
 	mime.AddExtensionType(".fb2", "txt/xml")
-	http.HandleFunc("/", errorHandler(catalogRoot))
+
+	flag.StringVar(&port, "port", "8080", "The server will listen in this port")
+	flag.StringVar(&dirRoot, "dir", "./books", "A directory with books")
+	flag.StringVar(&author, "author", "", "The author of the feed")
+	flag.StringVar(&authorUri, "uri", "", "The author uri")
+	flag.StringVar(&authorEmail, "email", "", "The author email")
+	flag.Parse()
+	updated = atom.Time(time.Now())
 }
 
 func main() {
-	portPtr := flag.String("port", "8080", "The server will listen in this port")
-	dirPtr := flag.String("dir", "./books", "A directory with books")
-	flag.Parse()
+	http.HandleFunc("/", errorHandler(func(w http.ResponseWriter, req *http.Request) error {
+		dirPath := filepath.Join(dirRoot, req.URL.Path)
+		fi, err := os.Stat(dirPath)
+		if err != nil {
+			return err
+		}
 
-	dirRoot = *dirPtr
-	log.Fatal(http.ListenAndServe(":"+*portPtr, nil))
+		if fi.IsDir() {
+			w.Write([]byte(xml.Header))
+			return writeFeedTo(w, req.URL)
+		}
+
+		return writeFileTo(w, dirPath)
+	}))
+
+	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+func writeFeedTo(w io.Writer, u *url.URL) error {
+	isAcquisition, err := isAcquisitionFeed(filepath.Join(dirRoot, u.Path))
+	if err != nil {
+		return err
+	}
+	if isAcquisition {
+		return writeAcquisitionFeed(w, u)
+	}
+	return writeCatalogFeed(w, u)
+}
+
+func isAcquisitionFeed(p string) (bool, error) {
+	fis, err := ioutil.ReadDir(p)
+	if err != nil {
+		return false, err
+	}
+	for _, fi := range fis {
+		if !fi.IsDir() {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func writeCatalogFeed(w io.Writer, u *url.URL) error {
+	//TODO: Do I am root
+	feed := &CatalogFeed{ID: u.Path, Title: "Catalog feed in " + u.Path}
+	feed.Author = &atom.Person{Name: author, Email: authorEmail, URI: authorUri}
+	feed.Updated = updated
+
+	abs_path := filepath.Join(dirRoot, u.Path)
+	fis, err := ioutil.ReadDir(abs_path)
+	if err != nil {
+		return err
+	}
+	for _, fi := range fis {
+		link := atom.Link{
+			Rel:"subsection",
+			Title: fi.Name(),
+			Href:  filepath.Join(u.EscapedPath(), url.PathEscape(fi.Name())),
+			Type:"application/atom+xml;profile=opds-catalog;kind=acquisition",
+		}
+		entry := &atom.Entry{
+			ID:      filepath.Join(u.Path, fi.Name()),
+			Title:   fi.Name(),
+			Updated: updated,
+			Link:  []atom.Link{link},
+		}
+		feed.Entry = append(feed.Entry, entry)
+
+	}
+
+	enc := xml.NewEncoder(w)
+	enc.Indent("  ", "    ")
+	enc.Encode(feed)
+	return nil
+}
+
+func writeAcquisitionFeed(w io.Writer, u *url.URL) error {
+	f := &atom.Feed{}
+	feed := &AcquisitionFeed{f, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
+	feed.ID = u.Path
+	feed.Updated = updated
+	feed.Title = filepath.Base(u.Path)
+	feed.Author = &atom.Person{Name: author, Email: authorEmail, URI: authorUri}
+
+	abs_path := filepath.Join(dirRoot, u.Path)
+	fis, err := ioutil.ReadDir(abs_path)
+	if err != nil {
+		return err
+	}
+	entry := &atom.Entry{
+		ID:      u.Path,
+		Title:   filepath.Base(u.Path),
+		Updated: updated,
+	}
+	for _, fi := range fis {
+		ext := filepath.Ext(fi.Name())
+		mime_type :=mime.TypeByExtension(ext)
+		var rel string
+		if rel="http://opds-spec.org/acquisition"; ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gift" {
+			rel="http://opds-spec.org/image/thumbnail"
+		}
+		link := atom.Link{
+			Rel: rel,
+			Type: mime_type,
+			Href:filepath.Join(u.EscapedPath(), url.PathEscape(fi.Name())),
+		}
+		entry.Link = append(entry.Link, link)
+	}
+	feed.Entry = append(feed.Entry, entry)
+
+	enc := xml.NewEncoder(w)
+	enc.Indent("  ", "    ")
+	enc.Encode(feed)
+	return nil
+	return nil
+}
+
+func writeFileTo(w io.Writer, filepath string) error {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	r.WriteTo(w)
+	return nil
 }
 
 func errorHandler(f func(http.ResponseWriter, *http.Request) error) http.HandlerFunc {
@@ -62,101 +204,3 @@ func errorHandler(f func(http.ResponseWriter, *http.Request) error) http.Handler
 		}
 	}
 }
-
-func catalogRoot(w http.ResponseWriter, req *http.Request) error {
-	dirPath := filepath.Join(dirRoot, req.URL.Path)
-	fi, err := os.Stat(dirPath)
-	if err != nil {
-		return err
-	}
-
-	if fi.IsDir() {
-		return catalogFeed(w, req, dirPath, fi.ModTime())
-	}
-	return writeFileTo(w, dirPath)
-}
-
-func catalogFeed(w io.Writer, r *http.Request, dirPath string, updatedTime time.Time) error {
-	fis, err := ioutil.ReadDir(dirPath)
-	if err != nil {
-		return err
-	}
-	feed := &atom.Feed{Title: "OPDS Catalog: " + r.URL.Path}
-	feed.ID = base64.StdEncoding.EncodeToString([]byte(r.URL.EscapedPath()))
-	feed.Updated = atom.Time(updatedTime)
-	if len(fis) < 1 {
-		return writeFeedTo(w, feed)
-	}
-
-	err = FeedEntries(feed, fis, r)
-	if err != nil {
-		return err
-	}
-
-	return writeFeedTo(w, feed)
-}
-
-func FeedEntries(f *atom.Feed, fis []os.FileInfo, r *http.Request) error {
-	for _, fi := range fis {
-		e := &atom.Entry{Title: fi.Name()}
-		e.ID = base64.StdEncoding.EncodeToString([]byte(path.Join(r.URL.EscapedPath(), url.PathEscape(fi.Name()))))
-		e.Updated = atom.Time(fi.ModTime())
-		l := atom.Link{Title: fi.Name(), Href: path.Join(r.URL.EscapedPath(), url.PathEscape(fi.Name()))}
-		if !fi.IsDir() {
-			l.Rel = "http://opds-spec.org/acquisition"
-		}
-		lType, err := getLinkType(path.Join(dirRoot, r.URL.Path, fi.Name()))
-		if err != nil {
-			return err
-		}
-		l.Type = lType
-		e.Link = append(e.Link, l)
-		f.Entry = append(f.Entry, e)
-	}
-	return nil
-}
-
-func writeFeedTo(w io.Writer, feed *atom.Feed) error {
-	io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-	enc := xml.NewEncoder(w)
-	enc.Indent("  ", "    ")
-	if err := enc.Encode(feed); err != nil {
-		return err
-	}
-	return nil
-}
-
-func writeFileTo(w io.Writer, filepath string) error {
-	f, err := os.Open(filepath)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(w, f)
-	if err != nil {
-		f.Close()
-		return err
-	}
-	f.Close()
-	return nil
-}
-
-func getLinkType(lPath string) (string, error) {
-	fi, err := os.Stat(lPath)
-	if err != nil {
-		return "", err
-	}
-	if !fi.IsDir() {
-		return mime.TypeByExtension(filepath.Ext(lPath)), nil
-	}
-	fis, err := ioutil.ReadDir(lPath)
-	if err != nil {
-		return "", err
-	}
-	for _, fi := range fis {
-		if !fi.IsDir() {
-			return "application/atom+xml;profile=opds-catalog;kind=acquisition", nil
-		}
-	}
-	return "application/atom+xml;profile=opds-catalog;kind=navigation", nil
-}
-
