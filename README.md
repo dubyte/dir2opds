@@ -1,10 +1,7 @@
 # dir2opds
-Serve an OPDS server based on a directory
+OPDS is an extension of Atom, to serve books. For more information: http://opds-spec.org
 
-Some times you only have a directory with books and you want an OPDS, but to get from dir to OPDS you maybe need to do some work, this project aim to
-simplely works.
-
-It didn't pass the opds validator yet. But the plan is to get to that point.
+dir2opds runs a OPDS server using a directory to generate the feeds.
 
 # Installation
 

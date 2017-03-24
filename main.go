@@ -42,6 +42,10 @@ type AcquisitionFeed struct {
 
 type CatalogFeed atom.Feed
 
+const catalogType = "application/atom+xml;profile=opds-catalog"
+const acquisitionType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
+const navegationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
+
 var (
 	port,
 	dirRoot,
@@ -110,14 +114,13 @@ func isAcquisitionFeed(p string) (bool, error) {
 }
 
 func writeCatalogFeed(w io.Writer, u *url.URL) error {
-	//TODO: Do I am root
 	feed := &CatalogFeed{ID: u.Path, Title: "Catalog feed in " + u.Path}
 	feed.Author = &atom.Person{Name: author, Email: authorEmail, URI: authorUri}
 	feed.Updated = updated
 	feed.Link = []atom.Link{{
 		Rel:  "start",
 		Href: "/",
-		Type: "application/atom+xml;profile=opds-catalog;kind=navigation",
+		Type: navegationType,
 	}}
 
 	abs_path := filepath.Join(dirRoot, u.Path)
@@ -125,12 +128,19 @@ func writeCatalogFeed(w io.Writer, u *url.URL) error {
 	if err != nil {
 		return err
 	}
+
 	for _, fi := range fis {
+		isAcquisition, _ := isAcquisitionFeed(filepath.Join(abs_path, fi.Name()))
+
+		var linkType string
+		if linkType = catalogType; isAcquisition {
+			linkType = acquisitionType
+		}
 		link := atom.Link{
 			Rel:   "subsection",
 			Title: fi.Name(),
 			Href:  filepath.Join(u.EscapedPath(), url.PathEscape(fi.Name())),
-			Type:  "application/atom+xml;profile=opds-catalog;kind=acquisition",
+			Type:  linkType,
 		}
 		entry := &atom.Entry{
 			ID:        filepath.Join(u.Path, fi.Name()),
@@ -193,11 +203,10 @@ func writeAcquisitionFeed(w io.Writer, u *url.URL) error {
 	enc.Indent("  ", "    ")
 	enc.Encode(feed)
 	return nil
-	return nil
 }
 
-func writeFileTo(w io.Writer, filepath string) error {
-	f, err := os.Open(filepath)
+func writeFileTo(w io.Writer, p string) error {
+	f, err := os.Open(p)
 	if err != nil {
 		return err
 	}
