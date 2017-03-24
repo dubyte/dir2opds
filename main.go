@@ -114,6 +114,11 @@ func writeCatalogFeed(w io.Writer, u *url.URL) error {
 	feed := &CatalogFeed{ID: u.Path, Title: "Catalog feed in " + u.Path}
 	feed.Author = &atom.Person{Name: author, Email: authorEmail, URI: authorUri}
 	feed.Updated = updated
+	feed.Link = []atom.Link{{
+		Rel:  "start",
+		Href: "/",
+		Type: "application/atom+xml;profile=opds-catalog;kind=navigation",
+	}}
 
 	abs_path := filepath.Join(dirRoot, u.Path)
 	fis, err := ioutil.ReadDir(abs_path)
@@ -122,16 +127,17 @@ func writeCatalogFeed(w io.Writer, u *url.URL) error {
 	}
 	for _, fi := range fis {
 		link := atom.Link{
-			Rel:"subsection",
+			Rel:   "subsection",
 			Title: fi.Name(),
 			Href:  filepath.Join(u.EscapedPath(), url.PathEscape(fi.Name())),
-			Type:"application/atom+xml;profile=opds-catalog;kind=acquisition",
+			Type:  "application/atom+xml;profile=opds-catalog;kind=acquisition",
 		}
 		entry := &atom.Entry{
-			ID:      filepath.Join(u.Path, fi.Name()),
-			Title:   fi.Name(),
-			Updated: updated,
-			Link:  []atom.Link{link},
+			ID:        filepath.Join(u.Path, fi.Name()),
+			Title:     fi.Name(),
+			Updated:   updated,
+			Published: updated,
+			Link:      []atom.Link{link},
 		}
 		feed.Entry = append(feed.Entry, entry)
 
@@ -150,6 +156,11 @@ func writeAcquisitionFeed(w io.Writer, u *url.URL) error {
 	feed.Updated = updated
 	feed.Title = filepath.Base(u.Path)
 	feed.Author = &atom.Person{Name: author, Email: authorEmail, URI: authorUri}
+	feed.Link = []atom.Link{{
+		Rel:  "start",
+		Href: "/",
+		Type: "application/atom+xml;profile=opds-catalog;kind=navigation",
+	}}
 
 	abs_path := filepath.Join(dirRoot, u.Path)
 	fis, err := ioutil.ReadDir(abs_path)
@@ -157,21 +168,22 @@ func writeAcquisitionFeed(w io.Writer, u *url.URL) error {
 		return err
 	}
 	entry := &atom.Entry{
-		ID:      u.Path,
-		Title:   filepath.Base(u.Path),
-		Updated: updated,
+		ID:        u.Path,
+		Title:     filepath.Base(u.Path),
+		Updated:   updated,
+		Published: updated,
 	}
 	for _, fi := range fis {
 		ext := filepath.Ext(fi.Name())
-		mime_type :=mime.TypeByExtension(ext)
+		mime_type := mime.TypeByExtension(ext)
 		var rel string
-		if rel="http://opds-spec.org/acquisition"; ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gift" {
-			rel="http://opds-spec.org/image/thumbnail"
+		if rel = "http://opds-spec.org/acquisition"; ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gift" {
+			rel = "http://opds-spec.org/image/thumbnail"
 		}
 		link := atom.Link{
-			Rel: rel,
+			Rel:  rel,
 			Type: mime_type,
-			Href:filepath.Join(u.EscapedPath(), url.PathEscape(fi.Name())),
+			Href: filepath.Join(u.EscapedPath(), url.PathEscape(fi.Name())),
 		}
 		entry.Link = append(entry.Link, link)
 	}
