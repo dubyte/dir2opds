@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "LGXeoFu5U86xjYFW3YCY3rOIa+o=",
+			"path": "golang.org/x/tools/blog/atom",
+			"revision": "8e779ee0a4509783f6940db32d1a4e8df910cc8b",
+			"revisionTime": "2017-02-14T15:12:52Z"
+		}
+	],
+	"rootPath": "github.com/dubyte/dir2opds"
+}
