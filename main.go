@@ -21,18 +21,16 @@ import (
 	"bytes"
 	"encoding/xml"
 	"flag"
-
-	"golang.org/x/tools/blog/atom"
-
 	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
-
 	"path/filepath"
 	"time"
+
+	"golang.org/x/tools/blog/atom"
 )
 
 var (
@@ -67,7 +65,7 @@ func handler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	if fi.IsDir() {
-		content, err := getContent(w, req, fpath)
+		content, err := getContent(req, fpath)
 		if err != nil {
 			return err
 		}
@@ -92,7 +90,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func getContent(w http.ResponseWriter, req *http.Request, dirpath string) (result []byte, err error) {
+func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 	feed := makeFeed(dirpath, req)
 	if isAcquisition(dirpath) {
 		acFeed := &AcquisitionFeed{&feed, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
