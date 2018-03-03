@@ -26,6 +26,6 @@
    - Moon+ reader
 
 # More information
-    http://opds-spec.org
+  - http://opds-spec.org
 
 
