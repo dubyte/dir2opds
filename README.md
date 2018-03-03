@@ -2,8 +2,8 @@
  dir2opds inspect the given folder and serve an opds 1.1 compliant server
 
 # Overview
- There are good options to server books using opds. I calibre is
- good at that, but if your server is headless sometimes install calibre
+ There are good options to server books using opds. Calibre is good doing
+ that but if your server is headless sometimes install calibre
  just for serve the books don't seems to be the best option.
 
  That is why calibre2opds exists, but if you just have too many books and
