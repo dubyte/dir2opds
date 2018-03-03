@@ -35,4 +35,5 @@ func (l linkBuilder) Build() atom.Link {
 	return builder.GetStruct(l).(atom.Link)
 }
 
+// LinkBuilder is a fluent immutable builder to build OPDS Links
 var LinkBuilder = builder.Register(linkBuilder{}, atom.Link{}).(linkBuilder)

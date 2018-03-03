@@ -1,9 +1,10 @@
 package main
 
 import (
+	"time"
+
 	"github.com/lann/builder"
 	"golang.org/x/tools/blog/atom"
-	"time"
 )
 
 type entryBuilder builder.Builder
@@ -12,7 +13,7 @@ func (e entryBuilder) Title(title string) entryBuilder {
 	return builder.Set(e, "Title", title).(entryBuilder)
 }
 
-func (e entryBuilder) Id(id string) entryBuilder {
+func (e entryBuilder) ID(id string) entryBuilder {
 	return builder.Set(e, "ID", id).(entryBuilder)
 }
 
@@ -44,4 +45,5 @@ func (e entryBuilder) Build() atom.Entry {
 	return builder.GetStruct(e).(atom.Entry)
 }
 
+// EntryBuilder is a fluent immutable builder to build OPDS entries
 var EntryBuilder = builder.Register(entryBuilder{}, atom.Entry{}).(entryBuilder)

@@ -19,4 +19,5 @@ func (t textBuilder) Build() atom.Text {
 	return builder.GetStruct(t).(atom.Text)
 }
 
+// TextBuilder is a fluent immutable builder to build OPDS texts
 var TextBuilder = builder.Register(textBuilder{}, atom.Text{}).(textBuilder)

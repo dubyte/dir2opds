@@ -37,14 +37,14 @@ var (
 	port,
 	dirRoot,
 	author,
-	authorUri,
+	authorURI,
 	authorEmail string
 )
 
 const acquisitionType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
 const navegationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
 
-type AcquisitionFeed struct {
+type acquisitionFeed struct {
 	*atom.Feed
 	Dc   string `xml:"xmlns:dc,attr"`
 	Opds string `xml:"xmlns:opds,attr"`
@@ -56,32 +56,11 @@ func init() {
 	mime.AddExtensionType(".fb2", "txt/xml")
 }
 
-func handler(w http.ResponseWriter, req *http.Request) error {
-	fpath := filepath.Join(dirRoot, req.URL.Path)
-
-	fi, err := os.Stat(fpath)
-	if err != nil {
-		return err
-	}
-
-	if fi.IsDir() {
-		content, err := getContent(req, fpath)
-		if err != nil {
-			return err
-		}
-		http.ServeContent(w, req, "feed.xml", time.Now(), bytes.NewReader(content))
-	} else {
-		http.ServeFile(w, req, fpath)
-	}
-
-	return nil
-}
-
 func main() {
 	flag.StringVar(&port, "port", "8080", "The server will listen in this port")
 	flag.StringVar(&dirRoot, "dir", "./books", "A directory with books")
 	flag.StringVar(&author, "serveFeedauthor", "", "The feed's author")
-	flag.StringVar(&authorUri, "uri", "", "The feed's author uri")
+	flag.StringVar(&authorURI, "uri", "", "The feed's author uri")
 	flag.StringVar(&authorEmail, "email", "", "The feed's author email")
 	flag.Parse()
 
@@ -90,10 +69,32 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
+func handler(w http.ResponseWriter, req *http.Request) error {
+	fpath := filepath.Join(dirRoot, req.URL.Path)
+
+	fi, err := os.Stat(fpath)
+	if err != nil {
+		return err
+	}
+
+	if isFile(fi) {
+		http.ServeFile(w, req, fpath)
+		return nil
+	}
+
+	content, err := getContent(req, fpath)
+	if err != nil {
+		return err
+	}
+
+	http.ServeContent(w, req, "feed.xml", time.Now(), bytes.NewReader(content))
+	return nil
+}
+
 func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 	feed := makeFeed(dirpath, req)
 	if isAcquisition(dirpath) {
-		acFeed := &AcquisitionFeed{&feed, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
+		acFeed := &acquisitionFeed{&feed, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
 		result, err = xml.MarshalIndent(acFeed, "  ", "    ")
 
 	} else {
@@ -104,9 +105,9 @@ func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 
 func makeFeed(dirpath string, req *http.Request) atom.Feed {
 	feedBuilder := FeedBuilder.
-		Id(req.URL.Path).
+		ID(req.URL.Path).
 		Title("Catalog in " + req.URL.Path).
-		Author(AuthorBuilder.Name(author).Email(authorEmail).URI(authorUri).Build()).
+		Author(AuthorBuilder.Name(author).Email(authorEmail).URI(authorURI).Build()).
 		Updated(time.Now()).
 		AddLink(LinkBuilder.Rel("start").Href("/").Type(navegationType).Build())
 
@@ -115,7 +116,7 @@ func makeFeed(dirpath string, req *http.Request) atom.Feed {
 		linkIsAcquisition := isAcquisition(filepath.Join(dirpath, fi.Name()))
 		feedBuilder = feedBuilder.
 			AddEntry(EntryBuilder.
-				Id(req.URL.Path + fi.Name()).
+				ID(req.URL.Path + fi.Name()).
 				Title(fi.Name()).
 				Updated(time.Now()).
 				Published(time.Now()).
@@ -155,20 +156,25 @@ func getType(name string, acquisition bool) (linkType string) {
 func getHref(req *http.Request, name string) string {
 	return filepath.Join(req.URL.EscapedPath(), url.PathEscape(name))
 }
+
 func isAcquisition(dirpath string) bool {
 	fi, _ := os.Stat(dirpath)
-	if !fi.IsDir() {
+	if isFile(fi) {
 		return false
 	}
 
 	fis, _ := ioutil.ReadDir(dirpath)
 
 	for _, fi := range fis {
-		if !fi.IsDir() {
+		if isFile(fi) {
 			return true
 		}
 	}
 	return false
+}
+
+func isFile(fi os.FileInfo) bool {
+	return !fi.IsDir()
 }
 
 func errorHandler(f func(http.ResponseWriter, *http.Request) error) http.HandlerFunc {

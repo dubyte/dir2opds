@@ -19,12 +19,13 @@ func (a authorBuilder) Email(email string) authorBuilder {
 	return builder.Set(a, "Email", email).(authorBuilder)
 }
 
-func (a authorBuilder) InnerXml(inner string) authorBuilder {
-	return builder.Set(a, "InnerXml", inner).(authorBuilder)
+func (a authorBuilder) InnerXML(inner string) authorBuilder {
+	return builder.Set(a, "InnerXML", inner).(authorBuilder)
 }
 
 func (a authorBuilder) Build() atom.Person {
 	return builder.GetStruct(a).(atom.Person)
 }
 
+// AuthorBuilder is a fluent immutable builder to build OPDS Authors
 var AuthorBuilder = builder.Register(authorBuilder{}, atom.Person{}).(authorBuilder)

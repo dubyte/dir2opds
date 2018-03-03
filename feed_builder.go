@@ -1,9 +1,10 @@
 package main
 
 import (
+	"time"
+
 	"github.com/lann/builder"
 	"golang.org/x/tools/blog/atom"
-	"time"
 )
 
 type feedBuilder builder.Builder
@@ -12,7 +13,7 @@ func (f feedBuilder) Title(title string) feedBuilder {
 	return builder.Set(f, "Title", title).(feedBuilder)
 }
 
-func (f feedBuilder) Id(id string) feedBuilder {
+func (f feedBuilder) ID(id string) feedBuilder {
 	return builder.Set(f, "ID", id).(feedBuilder)
 }
 
@@ -36,4 +37,5 @@ func (f feedBuilder) Build() atom.Feed {
 	return builder.GetStruct(f).(atom.Feed)
 }
 
+// FeedBuilder is a fluent immutable builder to build OPDS Feeds
 var FeedBuilder = builder.Register(feedBuilder{}, atom.Feed{}).(feedBuilder)
