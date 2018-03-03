@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/dubyte/dir2opds/opds"
 	"golang.org/x/tools/blog/atom"
 )
 
@@ -96,7 +97,6 @@ func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 	if isAcquisition(dirpath) {
 		acFeed := &acquisitionFeed{&feed, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
 		result, err = xml.MarshalIndent(acFeed, "  ", "    ")
-
 	} else {
 		result, err = xml.MarshalIndent(feed, "  ", "    ")
 	}
@@ -104,23 +104,23 @@ func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 }
 
 func makeFeed(dirpath string, req *http.Request) atom.Feed {
-	feedBuilder := FeedBuilder.
+	feedBuilder := opds.FeedBuilder.
 		ID(req.URL.Path).
 		Title("Catalog in " + req.URL.Path).
-		Author(AuthorBuilder.Name(author).Email(authorEmail).URI(authorURI).Build()).
+		Author(opds.AuthorBuilder.Name(author).Email(authorEmail).URI(authorURI).Build()).
 		Updated(time.Now()).
-		AddLink(LinkBuilder.Rel("start").Href("/").Type(navegationType).Build())
+		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navegationType).Build())
 
 	fis, _ := ioutil.ReadDir(dirpath)
 	for _, fi := range fis {
 		linkIsAcquisition := isAcquisition(filepath.Join(dirpath, fi.Name()))
 		feedBuilder = feedBuilder.
-			AddEntry(EntryBuilder.
+			AddEntry(opds.EntryBuilder.
 				ID(req.URL.Path + fi.Name()).
 				Title(fi.Name()).
 				Updated(time.Now()).
 				Published(time.Now()).
-				AddLink(LinkBuilder.
+				AddLink(opds.LinkBuilder.
 					Rel(getRel(fi.Name(), linkIsAcquisition)).
 					Title(fi.Name()).
 					Href(getHref(req, fi.Name())).
