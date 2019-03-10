@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a message when the server started in the stadin
 
 ### Changed
-- fix rel and type for aquisition
+- fix rel and type for acquisition
 - In the code change where the parameters are defined.
 - Changed serveFeedauthor parameter for author.
 - Adding host parameter.
 - Start using go modules.
 - Fixing typo in file extension gif
-- The memetype for FB2 changed to text/fb2+xml
+- The MIME-type for FB2 changed to text/fb2+xml
 
 ### Removed
 - vendor folder.

@@ -30,3 +30,6 @@
 
 # binary release
   - https://github.com/dubyte/dir2opds/releases
+
+# change log
+  - [Changelog](CHANGELOG.md)
