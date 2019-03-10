@@ -1,0 +1,6 @@
+github.com/lann/builder v0.0.0-20150808151131-f22ce00fd939 h1:yZJImkCmVI6d1uJ9KRRf/96YbFLDQ/hhs6Xt9Z3OBXI=
+github.com/lann/builder v0.0.0-20150808151131-f22ce00fd939/go.mod h1:dXGbAdH5GtBTC4WfIxhKZfyBF/HBFgRZSWwZ9g/He9o=
+github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 h1:P6pPBnrTSX3DEVR4fDembhRWSsG5rVo6hYhAB/ADZrk=
+github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0/go.mod h1:vmVJ0l/dxyfGW6FmdpVm2joNMFikkuWg0EoCKLGUMNw=
+golang.org/x/tools v0.0.0-20170217234718-8e779ee0a450 h1:qbbvkCEu5ZgZKpHV38z/uXcloRX6fn/EgiGMW/9eluc=
+golang.org/x/tools v0.0.0-20170217234718-8e779ee0a450/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
