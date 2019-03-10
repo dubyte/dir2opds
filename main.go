@@ -44,9 +44,6 @@ var (
 	authorEmail = flag.String("email", "", "The feed's author email")
 )
 
-const acquisitionType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
-const navegationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
-
 type acquisitionFeed struct {
 	*atom.Feed
 	Dc   string `xml:"xmlns:dc,attr"`
@@ -93,13 +90,14 @@ func handler(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
+	content = append([]byte(xml.Header), content...)
 	http.ServeContent(w, req, "feed.xml", time.Now(), bytes.NewReader(content))
 	return nil
 }
 
 func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 	feed := makeFeed(dirpath, req)
-	if isAcquisition(dirpath) {
+	if getPathType(dirpath) == pathTypeDirOfFiles {
 		acFeed := &acquisitionFeed{&feed, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
 		result, err = xml.MarshalIndent(acFeed, "  ", "    ")
 	} else {
@@ -107,6 +105,8 @@ func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 	}
 	return
 }
+
+const navegationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
 
 func makeFeed(dirpath string, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
@@ -118,7 +118,7 @@ func makeFeed(dirpath string, req *http.Request) atom.Feed {
 
 	fis, _ := ioutil.ReadDir(dirpath)
 	for _, fi := range fis {
-		linkIsAcquisition := isAcquisition(filepath.Join(dirpath, fi.Name()))
+		pathType := getPathType(filepath.Join(dirpath, fi.Name()))
 		feedBuilder = feedBuilder.
 			AddEntry(opds.EntryBuilder.
 				ID(req.URL.Path + fi.Name()).
@@ -126,56 +126,61 @@ func makeFeed(dirpath string, req *http.Request) atom.Feed {
 				Updated(time.Now()).
 				Published(time.Now()).
 				AddLink(opds.LinkBuilder.
-					Rel(getRel(fi.Name(), linkIsAcquisition)).
+					Rel(getRel(fi.Name(), pathType)).
 					Title(fi.Name()).
 					Href(getHref(req, fi.Name())).
-					Type(getType(fi.Name(), linkIsAcquisition)).
+					Type(getType(fi.Name(), pathType)).
 					Build()).
 				Build())
 	}
 	return feedBuilder.Build()
 }
 
-func getRel(name string, acquisition bool) (rel string) {
-	rel = "subsection"
-	if !acquisition {
-		return
+func getRel(name string, pathType int) string {
+	if pathType == pathTypeDirOfFiles || pathType == pathTypeDirOfDirs {
+		return "subsection"
 	}
+
 	ext := filepath.Ext(name)
-	if rel = "http://opds-spec.org/acquisition"; ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" {
-		rel = "http://opds-spec.org/image/thumbnail"
+	if ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" {
+		return "http://opds-spec.org/image/thumbnail"
 	}
-	return
+
+	// mobi, epub, etc
+	return "http://opds-spec.org/acquisition"
 }
 
-func getType(name string, acquisition bool) (linkType string) {
-	linkType = acquisitionType
-	if !acquisition {
-		return
+func getType(name string, pathType int) string {
+	if pathType == pathTypeFile {
+		return mime.TypeByExtension(filepath.Ext(name))
 	}
-	ext := filepath.Ext(name)
-	linkType = mime.TypeByExtension(ext)
-	return
+	return "application/atom+xml;profile=opds-catalog;kind=acquisition"
 }
 
 func getHref(req *http.Request, name string) string {
 	return filepath.Join(req.URL.EscapedPath(), url.PathEscape(name))
 }
 
-func isAcquisition(dirpath string) bool {
+const (
+	pathTypeFile = iota
+	pathTypeDirOfDirs
+	pathTypeDirOfFiles
+)
+
+func getPathType(dirpath string) int {
 	fi, _ := os.Stat(dirpath)
 	if isFile(fi) {
-		return false
+		return pathTypeFile
 	}
 
 	fis, _ := ioutil.ReadDir(dirpath)
-
 	for _, fi := range fis {
 		if isFile(fi) {
-			return true
+			return pathTypeDirOfFiles
 		}
 	}
-	return false
+	// Directory of directories
+	return pathTypeDirOfDirs
 }
 
 func isFile(fi os.FileInfo) bool {
