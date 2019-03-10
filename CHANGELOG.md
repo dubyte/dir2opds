@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed serveFeedauthor parameter for author.
 - Adding host parameter.
 - Start using go modules.
+- Fixing typo in file extension gif
+- The memetype for FB2 changed to text/fb2+xml
 
 ### Removed
 - vendor folder.

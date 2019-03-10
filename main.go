@@ -56,7 +56,7 @@ type acquisitionFeed struct {
 func init() {
 	mime.AddExtensionType(".mobi", "application/x-mobipocket-ebook")
 	mime.AddExtensionType(".epub", "application/epub+zip")
-	mime.AddExtensionType(".fb2", "txt/xml")
+	mime.AddExtensionType(".fb2", "text/fb2+xml")
 }
 
 func main() {
@@ -142,7 +142,7 @@ func getRel(name string, acquisition bool) (rel string) {
 		return
 	}
 	ext := filepath.Ext(name)
-	if rel = "http://opds-spec.org/acquisition"; ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gift" {
+	if rel = "http://opds-spec.org/acquisition"; ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" {
 		rel = "http://opds-spec.org/image/thumbnail"
 	}
 	return
