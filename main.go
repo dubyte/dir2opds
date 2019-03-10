@@ -71,7 +71,7 @@ func main() {
 
 func startValues() string {
 	var result string
-	result = fmt.Sprintf("dir2opds started to listen in: %s:%s", *host, *port)
+	result = fmt.Sprintf("listening in: %s:%s", *host, *port)
 	return result
 }
 
