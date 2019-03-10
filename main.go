@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -35,11 +36,12 @@ import (
 )
 
 var (
-	port,
-	dirRoot,
-	author,
-	authorURI,
-	authorEmail string
+	port        = flag.String("port", "8080", "The server will listen in this port")
+	host        = flag.String("host", "0.0.0.0", "The server will listen in this host")
+	dirRoot     = flag.String("dir", "./books", "A directory with books")
+	author      = flag.String("author", "", "The server Feed author")
+	authorURI   = flag.String("uri", "", "The feed's author uri")
+	authorEmail = flag.String("email", "", "The feed's author email")
 )
 
 const acquisitionType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
@@ -58,20 +60,23 @@ func init() {
 }
 
 func main() {
-	flag.StringVar(&port, "port", "8080", "The server will listen in this port")
-	flag.StringVar(&dirRoot, "dir", "./books", "A directory with books")
-	flag.StringVar(&author, "serveFeedauthor", "", "The feed's author")
-	flag.StringVar(&authorURI, "uri", "", "The feed's author uri")
-	flag.StringVar(&authorEmail, "email", "", "The feed's author email")
 	flag.Parse()
+
+	fmt.Println(startValues())
 
 	http.HandleFunc("/", errorHandler(handler))
 
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(*host+":"+*port, nil))
+}
+
+func startValues() string {
+	var result string
+	result = fmt.Sprintf("dir2opds started to listen in: %s:%s", *host, *port)
+	return result
 }
 
 func handler(w http.ResponseWriter, req *http.Request) error {
-	fpath := filepath.Join(dirRoot, req.URL.Path)
+	fpath := filepath.Join(*dirRoot, req.URL.Path)
 
 	fi, err := os.Stat(fpath)
 	if err != nil {
@@ -107,7 +112,7 @@ func makeFeed(dirpath string, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
 		ID(req.URL.Path).
 		Title("Catalog in " + req.URL.Path).
-		Author(opds.AuthorBuilder.Name(author).Email(authorEmail).URI(authorURI).Build()).
+		Author(opds.AuthorBuilder.Name(*author).Email(*authorEmail).URI(*authorURI).Build()).
 		Updated(time.Now()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navegationType).Build())
 
