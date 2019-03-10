@@ -17,7 +17,7 @@
  It is ok to have sub-folders.
 
 # Installation
-    go get github.com/dubyte/dir2opds
+    go get -u github.com/dubyte/dir2opds
 
 # Usage
     dir2opds -dir ./books -port 8080
