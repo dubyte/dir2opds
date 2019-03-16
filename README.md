@@ -16,6 +16,9 @@
 
  It is ok to have sub-folders.
 
+# change log
+  - [Changelog](CHANGELOG.md)
+
 # Installation
     go get -u github.com/dubyte/dir2opds
 
@@ -30,6 +33,3 @@
 
 # binary release
   - https://github.com/dubyte/dir2opds/releases
-
-# change log
-  - [Changelog](CHANGELOG.md)
