@@ -29,6 +29,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/dubyte/dir2opds/opds"
@@ -158,7 +159,9 @@ func getType(name string, pathType int) string {
 }
 
 func getHref(req *http.Request, name string) string {
-	return filepath.Join(req.URL.EscapedPath(), url.PathEscape(name))
+	return strings.Replace(
+        filepath.Join(req.URL.EscapedPath(), url.PathEscape(name)),
+        "\\", "/", -1)  // Windows path conversion - NOOP on non-Windows
 }
 
 const (
