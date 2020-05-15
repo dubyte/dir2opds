@@ -42,6 +42,7 @@ var (
 	author      = flag.String("author", "", "The server Feed author")
 	authorURI   = flag.String("uri", "", "The feed's author uri")
 	authorEmail = flag.String("email", "", "The feed's author email")
+	debug       = flag.Bool("debug", false, "If it is set it will log the requests")
 )
 
 type acquisitionFeed struct {
@@ -51,13 +52,20 @@ type acquisitionFeed struct {
 }
 
 func init() {
-	mime.AddExtensionType(".mobi", "application/x-mobipocket-ebook")
-	mime.AddExtensionType(".epub", "application/epub+zip")
-	mime.AddExtensionType(".fb2", "text/fb2+xml")
+	_ = mime.AddExtensionType(".mobi", "application/x-mobipocket-ebook")
+	_ = mime.AddExtensionType(".epub", "application/epub+zip")
+	_ = mime.AddExtensionType(".cbz", "application/x-cbz")
+	_ = mime.AddExtensionType(".cbr", "application/x-cbr")
+	_ = mime.AddExtensionType(".fb2", "text/fb2+xml")
 }
 
 func main() {
+
 	flag.Parse()
+
+	if *debug {
+		log.SetOutput(os.Stdout)
+	}
 
 	fmt.Println(startValues())
 
@@ -67,14 +75,13 @@ func main() {
 }
 
 func startValues() string {
-	var result string
-	result = fmt.Sprintf("listening in: %s:%s", *host, *port)
+	result := fmt.Sprintf("listening in: %s:%s", *host, *port)
 	return result
 }
 
 func handler(w http.ResponseWriter, req *http.Request) error {
 	fpath := filepath.Join(*dirRoot, req.URL.Path)
-
+	log.Printf("fpath:'%s'", fpath)
 	fi, err := os.Stat(fpath)
 	if err != nil {
 		return err
@@ -158,7 +165,7 @@ func getType(name string, pathType int) string {
 }
 
 func getHref(req *http.Request, name string) string {
-	return filepath.Join(req.URL.EscapedPath(), url.PathEscape(name))
+	return filepath.Join(req.URL.RequestURI(), url.PathEscape(name))
 }
 
 const (
