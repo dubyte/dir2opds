@@ -81,7 +81,9 @@ func startValues() string {
 
 func handler(w http.ResponseWriter, req *http.Request) error {
 	fpath := filepath.Join(*dirRoot, req.URL.Path)
+
 	log.Printf("fpath:'%s'", fpath)
+
 	fi, err := os.Stat(fpath)
 	if err != nil {
 		return err
@@ -113,7 +115,7 @@ func getContent(req *http.Request, dirpath string) (result []byte, err error) {
 	return
 }
 
-const navegationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
+const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
 
 func makeFeed(dirpath string, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
@@ -121,7 +123,7 @@ func makeFeed(dirpath string, req *http.Request) atom.Feed {
 		Title("Catalog in " + req.URL.Path).
 		Author(opds.AuthorBuilder.Name(*author).Email(*authorEmail).URI(*authorURI).Build()).
 		Updated(time.Now()).
-		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navegationType).Build())
+		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
 	fis, _ := ioutil.ReadDir(dirpath)
 	for _, fi := range fis {
