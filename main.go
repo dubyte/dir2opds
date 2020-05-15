@@ -63,8 +63,8 @@ func main() {
 
 	flag.Parse()
 
-	if *debug {
-		log.SetOutput(os.Stdout)
+	if !*debug {
+		log.SetOutput(ioutil.Discard)
 	}
 
 	fmt.Println(startValues())
