@@ -26,8 +26,8 @@ import (
 	"log"
 	"mime"
 	"net/http"
-	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -80,21 +80,21 @@ func startValues() string {
 }
 
 func handler(w http.ResponseWriter, req *http.Request) error {
-	fpath := filepath.Join(*dirRoot, req.URL.Path)
+	fPath := path.Join(*dirRoot, req.URL.Path)
 
-	log.Printf("fpath:'%s'", fpath)
+	log.Printf("fPath:'%s'", fPath)
 
-	fi, err := os.Stat(fpath)
+	fi, err := os.Stat(fPath)
 	if err != nil {
 		return err
 	}
 
 	if isFile(fi) {
-		http.ServeFile(w, req, fpath)
+		http.ServeFile(w, req, fPath)
 		return nil
 	}
 
-	content, err := getContent(req, fpath)
+	content, err := getContent(req, fPath)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func makeFeed(dirpath string, req *http.Request) atom.Feed {
 
 	fis, _ := ioutil.ReadDir(dirpath)
 	for _, fi := range fis {
-		pathType := getPathType(filepath.Join(dirpath, fi.Name()))
+		pathType := getPathType(path.Join(dirpath, fi.Name()))
 		feedBuilder = feedBuilder.
 			AddEntry(opds.EntryBuilder.
 				ID(req.URL.Path + fi.Name()).
@@ -167,7 +167,7 @@ func getType(name string, pathType int) string {
 }
 
 func getHref(req *http.Request, name string) string {
-	return filepath.Join(req.URL.RequestURI(), url.PathEscape(name))
+	return path.Join(req.URL.RequestURI(), name)
 }
 
 const (
