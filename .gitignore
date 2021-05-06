@@ -26,4 +26,4 @@ _testmain.go
 *.prof
 
 dir2opds
-!/dir2opds
+!/dir2opdsdist/
