@@ -27,3 +27,6 @@ _testmain.go
 
 dir2opds
 !/dir2opdsdist/
+
+# goreleaser
+dist/
