@@ -12,11 +12,47 @@
 
  - A folder should have only folders or only files.
 
-# change log
+# Change log
   - [Changelog](CHANGELOG.md)
 
 # Installation
     go get -u github.com/dubyte/dir2opds
+
+# Raspberry pi deployment using binary release
+```bash
+cd && mkdir dir2opds && cd dir2opds
+
+# get the binary
+wget https://github.com/dubyte/dir2opds/releases/download/v0.0.10/dir2opds_0.0.10_Linux_ARMv7.tar.gz
+
+tar xvf dir2opds_0.0.9_Linux_ARMv7.tar.gz
+
+sudo touch /etc/systemd/system/dir2opds.service
+
+# Paste the content below but rember to pass the fullpath of your books in -dir
+sudo nano /etc/systemd/system/dir2opds.service
+
+sudo systemctl enable dir2opds.service
+
+sudo systemctl start dir2opds.service
+```
+
+/etc/systemd/system/dir2opds.service
+```ini
+[Unit]
+Description=dir2opds
+Documentation=https://github.com/dubyte/dir2opds
+After=network-online.target
+
+[Service]
+User=pi
+Restart=on-failure
+
+ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
+
+[Install]
+WantedBy=multi-user.target
+```
 
 # Usage
     dir2opds -dir ./books -port 8080
