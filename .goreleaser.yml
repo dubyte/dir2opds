@@ -26,6 +26,7 @@ builds:
       - arm64
     goarm:
       - 7
+      - 6
     ignore:
       - goos: darwin
         goarch: 386
