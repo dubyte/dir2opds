@@ -7,6 +7,12 @@ import (
 	"golang.org/x/tools/blog/atom"
 )
 
+type AcquisitionFeed struct {
+	*atom.Feed
+	Dc   string `xml:"xmlns:dc,attr"`
+	Opds string `xml:"xmlns:opds,attr"`
+}
+
 type feedBuilder builder.Builder
 
 func (f feedBuilder) Title(title string) feedBuilder {
