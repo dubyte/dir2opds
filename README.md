@@ -18,7 +18,20 @@
 # Installation
     go get -u github.com/dubyte/dir2opds
 
-# Raspberry pi deployment using binary release
+# Usage
+    dir2opds -dir ./books -port 8080
+
+# Tested on:
+   - Moon+ reader
+
+# More information
+  - http://opds-spec.org
+
+# Binary release
+  - https://github.com/dubyte/dir2opds/releases
+
+
+## Raspberry pi deployment using binary release
 ```bash
 cd && mkdir dir2opds && cd dir2opds
 
@@ -53,15 +66,3 @@ ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
 [Install]
 WantedBy=multi-user.target
 ```
-
-# Usage
-    dir2opds -dir ./books -port 8080
-
-# Tested on:
-   - Moon+ reader
-
-# More information
-  - http://opds-spec.org
-
-# binary release
-  - https://github.com/dubyte/dir2opds/releases
