@@ -10,8 +10,8 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"time"
 
@@ -37,7 +37,7 @@ type OPDS struct {
 var TimeNowFunc = timeNow
 
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
-	fPath := path.Join(s.DirRoot, req.URL.Path)
+	fPath := filepath.Join(s.DirRoot, req.URL.Path)
 
 	log.Printf("fPath:'%s'", fPath)
 
@@ -84,7 +84,7 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 
 	fis, _ := ioutil.ReadDir(dirpath)
 	for _, fi := range fis {
-		pathType := getPathType(path.Join(dirpath, fi.Name()))
+		pathType := getPathType(filepath.Join(dirpath, fi.Name()))
 		feedBuilder = feedBuilder.
 			AddEntry(opds.EntryBuilder.
 				ID(req.URL.Path + fi.Name()).
@@ -124,7 +124,7 @@ func getType(name string, pathType int) string {
 }
 
 func getHref(req *http.Request, name string) string {
-	return path.Join(req.URL.RequestURI(), name)
+	return filepath.Join(req.URL.RequestURI(), url.PathEscape(name))
 }
 
 const (

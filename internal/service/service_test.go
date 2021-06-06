@@ -27,6 +27,7 @@ func TestHandler(t *testing.T) {
 		"feed (dir of folders )":        {input: "/", want: feed, WantedContentType: "application/xml"},
 		"acquisitionFeed(dir of files)": {input: "/mybook", want: acquisitionFeed, WantedContentType: "application/xml"},
 		"servingAFile":                  {input: "/mybook/mybook.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
+		"serving file with spaces":      {input: "/mybook/mybook%20copy.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
 	}
 
 	for name, tc := range tests {
@@ -80,6 +81,13 @@ var feed = `<?xml version="1.0" encoding="UTF-8"?>
           <published>2020-05-25T00:00:00+00:00</published>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
+      <entry>
+          <title>new folder</title>
+          <id>/new folder</id>
+          <link rel="subsection" href="/new%20folder" type="application/atom+xml;profile=opds-catalog;kind=acquisition" title="new folder"></link>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
+      </entry>
   </feed>`
 
 var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
@@ -91,6 +99,20 @@ var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
       <author>
           <name></name>
       </author>
+      <entry>
+          <title>mybook copy.epub</title>
+          <id>/mybookmybook copy.epub</id>
+          <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook%20copy.epub" type="application/epub+zip" title="mybook copy.epub"></link>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
+      </entry>
+      <entry>
+          <title>mybook copy.txt</title>
+          <id>/mybookmybook copy.txt</id>
+          <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook%20copy.txt" type="text/plain; charset=utf-8" title="mybook copy.txt"></link>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
+      </entry>
       <entry>
           <title>mybook.epub</title>
           <id>/mybookmybook.epub</id>
