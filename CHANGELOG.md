@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.11] - 2021-06-05
 ### Changed
-- Unittests
+- return to filepath as the best way to handle paths for different platforms.
 
 ## [0.0.10] - 2021-05-06
 ### Added
