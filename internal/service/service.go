@@ -27,6 +27,12 @@ func init() {
 	_ = mime.AddExtensionType(".fb2", "text/fb2+xml")
 }
 
+const (
+	pathTypeFile = iota
+	pathTypeDirOfDirs
+	pathTypeDirOfFiles
+)
+
 type OPDS struct {
 	DirRoot     string
 	Author      string
@@ -34,42 +40,42 @@ type OPDS struct {
 	AuthorURI   string
 }
 
-var TimeNowFunc = timeNow
+var TimeNow = timeNowFunc()
 
+// Handler serve the content of a book file or
+// returns an Acquisition Feed when the entries are documents or
+// returns an Navegation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	fPath := filepath.Join(s.DirRoot, req.URL.Path)
 
 	log.Printf("fPath:'%s'", fPath)
 
-	fi, err := os.Stat(fPath)
-	if err != nil {
-		return err
-	}
-
-	if isFile(fi) {
+	if getPathType(fPath) == pathTypeFile {
 		http.ServeFile(w, req, fPath)
 		return nil
 	}
 
-	content, err := s.getContent(req, fPath)
+	navFeed := s.makeFeed(fPath, req)
+
+	var content []byte
+	var err error
+	if getPathType(fPath) == pathTypeDirOfFiles {
+		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
+		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
+		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
+	} else {
+		content, err = xml.MarshalIndent(navFeed, "  ", "    ")
+		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
+	}
 	if err != nil {
+		log.Printf("error while serving '%s': %s", fPath, err)
 		return err
 	}
 
 	content = append([]byte(xml.Header), content...)
-	http.ServeContent(w, req, "feed.xml", TimeNowFunc(), bytes.NewReader(content))
-	return nil
-}
+	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
 
-func (s OPDS) getContent(req *http.Request, dirpath string) (result []byte, err error) {
-	feed := s.makeFeed(dirpath, req)
-	if getPathType(dirpath) == pathTypeDirOfFiles {
-		acFeed := &opds.AcquisitionFeed{&feed, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
-		result, err = xml.MarshalIndent(acFeed, "  ", "    ")
-	} else {
-		result, err = xml.MarshalIndent(feed, "  ", "    ")
-	}
-	return
+	return nil
 }
 
 const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
@@ -79,7 +85,7 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 		ID(req.URL.Path).
 		Title("Catalog in " + req.URL.Path).
 		Author(opds.AuthorBuilder.Name(s.Author).Email(s.AuthorEmail).URI(s.AuthorURI).Build()).
-		Updated(TimeNowFunc()).
+		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
 	fis, _ := ioutil.ReadDir(dirpath)
@@ -89,12 +95,12 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 			AddEntry(opds.EntryBuilder.
 				ID(req.URL.Path + fi.Name()).
 				Title(fi.Name()).
-				Updated(TimeNowFunc()).
-				Published(TimeNowFunc()).
+				Updated(TimeNow()).
+				Published(TimeNow()).
 				AddLink(opds.LinkBuilder.
 					Rel(getRel(fi.Name(), pathType)).
 					Title(fi.Name()).
-					Href(getHref(req, fi.Name())).
+					Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(fi.Name()))).
 					Type(getType(fi.Name(), pathType)).
 					Build()).
 				Build())
@@ -117,21 +123,17 @@ func getRel(name string, pathType int) string {
 }
 
 func getType(name string, pathType int) string {
-	if pathType == pathTypeFile {
+	switch pathType {
+	case pathTypeFile:
 		return mime.TypeByExtension(filepath.Ext(name))
+	case pathTypeDirOfFiles:
+		return "application/atom+xml;profile=opds-catalog;kind=acquisition"
+	case pathTypeDirOfDirs:
+		return "application/atom+xml;profile=opds-catalog;kind=navigation"
+	default:
+		return mime.TypeByExtension("xml")
 	}
-	return "application/atom+xml;profile=opds-catalog;kind=acquisition"
 }
-
-func getHref(req *http.Request, name string) string {
-	return filepath.Join(req.URL.RequestURI(), url.PathEscape(name))
-}
-
-const (
-	pathTypeFile = iota
-	pathTypeDirOfDirs
-	pathTypeDirOfFiles
-)
 
 func getPathType(dirpath string) int {
 	fi, _ := os.Stat(dirpath)
@@ -153,6 +155,7 @@ func isFile(fi os.FileInfo) bool {
 	return !fi.IsDir()
 }
 
-func timeNow() time.Time {
-	return time.Now()
+func timeNowFunc() func() time.Time {
+	t := time.Now()
+	return func() time.Time { return t }
 }

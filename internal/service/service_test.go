@@ -14,9 +14,9 @@ import (
 
 func TestHandler(t *testing.T) {
 	// pre-setup
-	nowFn := service.TimeNowFunc
+	nowFn := service.TimeNow
 	defer func() {
-		service.TimeNowFunc = nowFn
+		service.TimeNow = nowFn
 	}()
 
 	tests := map[string]struct {
@@ -24,8 +24,8 @@ func TestHandler(t *testing.T) {
 		want              string
 		WantedContentType string
 	}{
-		"feed (dir of folders )":        {input: "/", want: feed, WantedContentType: "application/xml"},
-		"acquisitionFeed(dir of files)": {input: "/mybook", want: acquisitionFeed, WantedContentType: "application/xml"},
+		"feed (dir of dirs )":           {input: "/", want: feed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=navigation"},
+		"acquisitionFeed(dir of files)": {input: "/mybook", want: acquisitionFeed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=acquisition"},
 		"servingAFile":                  {input: "/mybook/mybook.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
 		"serving file with spaces":      {input: "/mybook/mybook%20copy.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
 	}
@@ -36,7 +36,7 @@ func TestHandler(t *testing.T) {
 			s := service.OPDS{"testdata", "", "", ""}
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, tc.input, nil)
-			service.TimeNowFunc = func() time.Time {
+			service.TimeNow = func() time.Time {
 				return time.Date(2020, 05, 25, 00, 00, 00, 0, time.UTC)
 			}
 

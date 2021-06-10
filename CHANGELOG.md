@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2021-06-10
+### Changed
+- time is calculated only once
+- updated the mimetype returned for the navigation and acquisition xmls
+
 ## [0.0.11] - 2021-06-05
 ### Changed
 - return to filepath as the best way to handle paths for different platforms.
