@@ -27,6 +27,12 @@ func init() {
 	_ = mime.AddExtensionType(".fb2", "text/fb2+xml")
 }
 
+const (
+	pathTypeFile = iota
+	pathTypeDirOfDirs
+	pathTypeDirOfFiles
+)
+
 type OPDS struct {
 	DirRoot     string
 	Author      string
@@ -36,40 +42,40 @@ type OPDS struct {
 
 var TimeNow = timeNowFunc()
 
+// Handler serve the content of a book file or
+// returns an Acquisition Feed when the entries are documents or
+// returns an Navegation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	fPath := filepath.Join(s.DirRoot, req.URL.Path)
 
 	log.Printf("fPath:'%s'", fPath)
 
-	fi, err := os.Stat(fPath)
-	if err != nil {
-		return err
-	}
-
-	if isFile(fi) {
+	if getPathType(fPath) == pathTypeFile {
 		http.ServeFile(w, req, fPath)
 		return nil
 	}
 
-	content, err := s.getContent(req, fPath)
+	navFeed := s.makeFeed(fPath, req)
+
+	var content []byte
+	var err error
+	if getPathType(fPath) == pathTypeDirOfFiles {
+		// if path is a directory of files it is an aquisition feed
+		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
+		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
+	} else {
+		// if path is a directory of directories it is an aquisition feed
+		content, err = xml.MarshalIndent(navFeed, "  ", "    ")
+	}
 	if err != nil {
+		log.Printf("error while serving '%s': %s", fPath, err)
 		return err
 	}
 
 	content = append([]byte(xml.Header), content...)
 	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
-	return nil
-}
 
-func (s OPDS) getContent(req *http.Request, dirpath string) (result []byte, err error) {
-	feed := s.makeFeed(dirpath, req)
-	if getPathType(dirpath) == pathTypeDirOfFiles {
-		acFeed := &opds.AcquisitionFeed{Feed: &feed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
-		result, err = xml.MarshalIndent(acFeed, "  ", "    ")
-	} else {
-		result, err = xml.MarshalIndent(feed, "  ", "    ")
-	}
-	return
+	return nil
 }
 
 const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
@@ -94,7 +100,7 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 				AddLink(opds.LinkBuilder.
 					Rel(getRel(fi.Name(), pathType)).
 					Title(fi.Name()).
-					Href(getHref(req, fi.Name())).
+					Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(fi.Name()))).
 					Type(getType(fi.Name(), pathType)).
 					Build()).
 				Build())
@@ -122,16 +128,6 @@ func getType(name string, pathType int) string {
 	}
 	return "application/atom+xml;profile=opds-catalog;kind=acquisition"
 }
-
-func getHref(req *http.Request, name string) string {
-	return filepath.Join(req.URL.RequestURI(), url.PathEscape(name))
-}
-
-const (
-	pathTypeFile = iota
-	pathTypeDirOfDirs
-	pathTypeDirOfFiles
-)
 
 func getPathType(dirpath string) int {
 	fi, _ := os.Stat(dirpath)
