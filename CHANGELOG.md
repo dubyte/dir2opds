@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2021-06-10
 ### Changed
 - time is calculated only once
+- updated the mimetype returned for the navigation and acquisition xmls
 
 ## [0.0.11] - 2021-06-05
 ### Changed
