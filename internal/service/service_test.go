@@ -14,9 +14,9 @@ import (
 
 func TestHandler(t *testing.T) {
 	// pre-setup
-	nowFn := service.TimeNowFunc
+	nowFn := service.TimeNow
 	defer func() {
-		service.TimeNowFunc = nowFn
+		service.TimeNow = nowFn
 	}()
 
 	tests := map[string]struct {
@@ -36,7 +36,7 @@ func TestHandler(t *testing.T) {
 			s := service.OPDS{"testdata", "", "", ""}
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, tc.input, nil)
-			service.TimeNowFunc = func() time.Time {
+			service.TimeNow = func() time.Time {
 				return time.Date(2020, 05, 25, 00, 00, 00, 0, time.UTC)
 			}
 

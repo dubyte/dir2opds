@@ -34,7 +34,7 @@ type OPDS struct {
 	AuthorURI   string
 }
 
-var TimeNowFunc = timeNow
+var TimeNow = timeNowFunc()
 
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	fPath := filepath.Join(s.DirRoot, req.URL.Path)
@@ -57,14 +57,14 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	content = append([]byte(xml.Header), content...)
-	http.ServeContent(w, req, "feed.xml", TimeNowFunc(), bytes.NewReader(content))
+	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
 	return nil
 }
 
 func (s OPDS) getContent(req *http.Request, dirpath string) (result []byte, err error) {
 	feed := s.makeFeed(dirpath, req)
 	if getPathType(dirpath) == pathTypeDirOfFiles {
-		acFeed := &opds.AcquisitionFeed{&feed, "http://purl.org/dc/terms/", "http://opds-spec.org/2010/catalog"}
+		acFeed := &opds.AcquisitionFeed{Feed: &feed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
 		result, err = xml.MarshalIndent(acFeed, "  ", "    ")
 	} else {
 		result, err = xml.MarshalIndent(feed, "  ", "    ")
@@ -79,7 +79,7 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 		ID(req.URL.Path).
 		Title("Catalog in " + req.URL.Path).
 		Author(opds.AuthorBuilder.Name(s.Author).Email(s.AuthorEmail).URI(s.AuthorURI).Build()).
-		Updated(TimeNowFunc()).
+		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
 	fis, _ := ioutil.ReadDir(dirpath)
@@ -89,8 +89,8 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 			AddEntry(opds.EntryBuilder.
 				ID(req.URL.Path + fi.Name()).
 				Title(fi.Name()).
-				Updated(TimeNowFunc()).
-				Published(TimeNowFunc()).
+				Updated(TimeNow()).
+				Published(TimeNow()).
 				AddLink(opds.LinkBuilder.
 					Rel(getRel(fi.Name(), pathType)).
 					Title(fi.Name()).
@@ -153,6 +153,7 @@ func isFile(fi os.FileInfo) bool {
 	return !fi.IsDir()
 }
 
-func timeNow() time.Time {
-	return time.Now()
+func timeNowFunc() func() time.Time {
+	t := time.Now()
+	return func() time.Time { return t }
 }
