@@ -60,12 +60,12 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	var content []byte
 	var err error
 	if getPathType(fPath) == pathTypeDirOfFiles {
-		// if path is a directory of files it is an aquisition feed
 		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
 		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
+		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
 	} else {
-		// if path is a directory of directories it is an aquisition feed
 		content, err = xml.MarshalIndent(navFeed, "  ", "    ")
+		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 	}
 	if err != nil {
 		log.Printf("error while serving '%s': %s", fPath, err)
@@ -123,10 +123,16 @@ func getRel(name string, pathType int) string {
 }
 
 func getType(name string, pathType int) string {
-	if pathType == pathTypeFile {
+	switch pathType {
+	case pathTypeFile:
 		return mime.TypeByExtension(filepath.Ext(name))
+	case pathTypeDirOfFiles:
+		return "application/atom+xml;profile=opds-catalog;kind=acquisition"
+	case pathTypeDirOfDirs:
+		return "application/atom+xml;profile=opds-catalog;kind=navigation"
+	default:
+		return mime.TypeByExtension("xml")
 	}
-	return "application/atom+xml;profile=opds-catalog;kind=acquisition"
 }
 
 func getPathType(dirpath string) int {
