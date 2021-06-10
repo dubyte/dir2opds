@@ -24,8 +24,8 @@ func TestHandler(t *testing.T) {
 		want              string
 		WantedContentType string
 	}{
-		"feed (dir of folders )":        {input: "/", want: feed, WantedContentType: "application/xml"},
-		"acquisitionFeed(dir of files)": {input: "/mybook", want: acquisitionFeed, WantedContentType: "application/xml"},
+		"feed (dir of dirs )":           {input: "/", want: feed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=navigation"},
+		"acquisitionFeed(dir of files)": {input: "/mybook", want: acquisitionFeed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=acquisition"},
 		"servingAFile":                  {input: "/mybook/mybook.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
 		"serving file with spaces":      {input: "/mybook/mybook%20copy.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
 	}
