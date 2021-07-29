@@ -16,7 +16,7 @@
   - [Changelog](CHANGELOG.md)
 
 # Installation
-    go install github.com/dubyte/dir2opds
+    go install github.com/dubyte/dir2opds@latest
 
 # Usage
     dir2opds -dir ./books -port 8080
