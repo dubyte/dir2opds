@@ -66,3 +66,6 @@ ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
 [Install]
 WantedBy=multi-user.target
 ```
+
+# How to contribute
+  - [Contributing](CONTRIBUTING.md)
