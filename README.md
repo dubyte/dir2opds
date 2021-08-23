@@ -38,7 +38,7 @@ cd && mkdir dir2opds && cd dir2opds
 # get the binary
 wget https://github.com/dubyte/dir2opds/releases/download/v0.0.10/dir2opds_0.0.10_Linux_ARMv7.tar.gz
 
-tar xvf dir2opds_0.0.9_Linux_ARMv7.tar.gz
+tar xvf dir2opds_0.0.10_Linux_ARMv7.tar.gz
 
 sudo touch /etc/systemd/system/dir2opds.service
 
