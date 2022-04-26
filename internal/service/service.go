@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/dubyte/dir2opds/opds"
@@ -46,6 +47,10 @@ var TimeNow = timeNowFunc()
 // returns an Acquisition Feed when the entries are documents or
 // returns an Navegation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
+	if strings.Contains(req.URL.Path, "favicon.icon") {
+		w.WriteHeader(http.StatusNotFound)
+	}
+
 	fPath := filepath.Join(s.DirRoot, req.URL.Path)
 
 	log.Printf("fPath:'%s'", fPath)
@@ -136,12 +141,18 @@ func getType(name string, pathType int) string {
 }
 
 func getPathType(dirpath string) int {
-	fi, _ := os.Stat(dirpath)
+	fi, err := os.Stat(dirpath)
+	if err != nil {
+		panic(err)
+	}
 	if isFile(fi) {
 		return pathTypeFile
 	}
 
-	fis, _ := ioutil.ReadDir(dirpath)
+	fis, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		panic(err)
+	}
 	for _, fi := range fis {
 		if isFile(fi) {
 			return pathTypeDirOfFiles
