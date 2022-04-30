@@ -33,7 +33,7 @@ func TestHandler(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			// setup
-			s := service.OPDS{"testdata", "", "", ""}
+			s := service.OPDS{"testdata"}
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, tc.input, nil)
 			service.TimeNow = func() time.Time {
@@ -64,9 +64,6 @@ var feed = `<?xml version="1.0" encoding="UTF-8"?>
       <id>/</id>
       <link rel="start" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
       <updated>2020-05-25T00:00:00+00:00</updated>
-      <author>
-          <name></name>
-      </author>
       <entry>
           <title>emptyFolder</title>
           <id>/emptyFolder</id>
@@ -96,9 +93,6 @@ var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
       <id>/mybook</id>
       <link rel="start" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
       <updated>2020-05-25T00:00:00+00:00</updated>
-      <author>
-          <name></name>
-      </author>
       <entry>
           <title>mybook copy.epub</title>
           <id>/mybookmybook copy.epub</id>

@@ -35,10 +35,7 @@ const (
 )
 
 type OPDS struct {
-	DirRoot     string
-	Author      string
-	AuthorEmail string
-	AuthorURI   string
+	DirRoot string
 }
 
 var TimeNow = timeNowFunc()
@@ -47,8 +44,9 @@ var TimeNow = timeNowFunc()
 // returns an Acquisition Feed when the entries are documents or
 // returns an Navegation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
-	if strings.Contains(req.URL.Path, "favicon.icon") {
+	if strings.Contains(req.URL.Path, "favicon.ico") {
 		w.WriteHeader(http.StatusNotFound)
+		return nil
 	}
 
 	fPath := filepath.Join(s.DirRoot, req.URL.Path)
@@ -89,7 +87,6 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
 		ID(req.URL.Path).
 		Title("Catalog in " + req.URL.Path).
-		Author(opds.AuthorBuilder.Name(s.Author).Email(s.AuthorEmail).URI(s.AuthorURI).Build()).
 		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
@@ -143,16 +140,18 @@ func getType(name string, pathType int) string {
 func getPathType(dirpath string) int {
 	fi, err := os.Stat(dirpath)
 	if err != nil {
-		panic(err)
+		log.Printf("getPathType os.Stat err: %s", err)
 	}
+
 	if isFile(fi) {
 		return pathTypeFile
 	}
 
 	fis, err := ioutil.ReadDir(dirpath)
 	if err != nil {
-		panic(err)
+		log.Printf("getPathType: readDir err: %s", err)
 	}
+
 	for _, fi := range fis {
 		if isFile(fi) {
 			return pathTypeDirOfFiles
