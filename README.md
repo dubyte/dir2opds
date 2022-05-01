@@ -19,7 +19,20 @@
     go install github.com/dubyte/dir2opds@latest
 
 # Usage
-    dir2opds -dir ./books -port 8080
+```bash
+Usage of dir2opds:
+  -calibre
+    	Hide files stored by calibre
+  -debug
+    	If it is set it will log the requests
+  -dir string
+    	A directory with books (default "./books")
+  -host string
+    	The server will listen in this host (default "0.0.0.0")
+  -port string
+    	The server will listen in this port (default "8080")
+
+```
 
 # Tested on:
    - Moon+ reader

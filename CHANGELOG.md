@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2022-04-30
+### Changed
+- logic that ignores favicon.ico was removed.
+
+### Added
+- when a request is recieved from a path that does not exists it logs and return 404
+- calibre program argument was added to hide some files like metadata.opf and cover.jpg
+
+### Fixed
+- A panic when a path does not exists, not it logs an error instead.
+
 ## [0.1.2] - 2022-04-30
+
 ### Changed
 - fix favicon.ico typo
 - remove app arguments about author is not necesary and is not intuitive

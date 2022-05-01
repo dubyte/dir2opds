@@ -32,6 +32,7 @@ var (
 	host    = flag.String("host", "0.0.0.0", "The server will listen in this host")
 	dirRoot = flag.String("dir", "./books", "A directory with books")
 	debug   = flag.Bool("debug", false, "If it is set it will log the requests")
+	calibre = flag.Bool("calibre", false, "Hide files stored by calibre")
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 
 	fmt.Println(startValues())
 
-	s := service.OPDS{DirRoot: *dirRoot}
+	s := service.OPDS{DirRoot: *dirRoot, IsCalibreLibrary: *calibre}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
 

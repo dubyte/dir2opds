@@ -35,7 +35,8 @@ const (
 )
 
 type OPDS struct {
-	DirRoot string
+	DirRoot          string
+	IsCalibreLibrary bool
 }
 
 var TimeNow = timeNowFunc()
@@ -44,12 +45,13 @@ var TimeNow = timeNowFunc()
 // returns an Acquisition Feed when the entries are documents or
 // returns an Navegation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
-	if strings.Contains(req.URL.Path, "favicon.ico") {
+	fPath := filepath.Join(s.DirRoot, req.URL.Path)
+
+	if _, err := os.Stat(fPath); err != nil {
+		log.Printf("fPath err: %s", err)
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
-
-	fPath := filepath.Join(s.DirRoot, req.URL.Path)
 
 	log.Printf("fPath:'%s'", fPath)
 
@@ -92,13 +94,31 @@ func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
 
 	fis, _ := ioutil.ReadDir(dirpath)
 	for _, fi := range fis {
+		// set by calibre
+		if s.IsCalibreLibrary && strings.Contains(fi.Name(), ".opf") {
+			continue
+		}
+
+		// set by calibre
+		if s.IsCalibreLibrary && strings.Contains(fi.Name(), "cover.") {
+			continue
+		}
+
+		// set by calibre
+		if s.IsCalibreLibrary && strings.Contains(fi.Name(), "metadata.db") {
+			continue
+		}
+
+		// set by calibre
+		if s.IsCalibreLibrary && strings.Contains(fi.Name(), "metadata_db_prefs_backup.json") {
+			continue
+		}
+
 		pathType := getPathType(filepath.Join(dirpath, fi.Name()))
 		feedBuilder = feedBuilder.
 			AddEntry(opds.EntryBuilder.
 				ID(req.URL.Path + fi.Name()).
 				Title(fi.Name()).
-				Updated(TimeNow()).
-				Published(TimeNow()).
 				AddLink(opds.LinkBuilder.
 					Rel(getRel(fi.Name(), pathType)).
 					Title(fi.Name()).
