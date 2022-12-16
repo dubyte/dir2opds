@@ -1,4 +1,4 @@
-//package service provides a http handler that reads the path in the request.url and returns
+// package service provides a http handler that reads the path in the request.url and returns
 // an xml document that follows the OPDS 1.1 standard
 // https://specs.opds.io/opds-1.1.html
 package service
@@ -26,6 +26,7 @@ func init() {
 	_ = mime.AddExtensionType(".cbz", "application/x-cbz")
 	_ = mime.AddExtensionType(".cbr", "application/x-cbr")
 	_ = mime.AddExtensionType(".fb2", "text/fb2+xml")
+	_ = mime.AddExtensionType(".pdf", "application/pdf")
 }
 
 const (
@@ -39,13 +40,24 @@ type OPDS struct {
 	IsCalibreLibrary bool
 }
 
+const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
+
 var TimeNow = timeNowFunc()
 
 // Handler serve the content of a book file or
 // returns an Acquisition Feed when the entries are documents or
 // returns an Navegation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
-	fPath := filepath.Join(s.DirRoot, req.URL.Path)
+	var err error
+	urlPath, err := url.PathUnescape(req.URL.Path)
+	if err != nil {
+		log.Printf("error while serving '%s': %s", req.URL.Path, err)
+		return err
+	}
+
+	fPath := filepath.Join(s.DirRoot, urlPath)
+
+	log.Printf("urlPath:'%s'", urlPath)
 
 	if _, err := os.Stat(fPath); err != nil {
 		log.Printf("fPath err: %s", err)
@@ -55,6 +67,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 
 	log.Printf("fPath:'%s'", fPath)
 
+	// it's a file just serve the file
 	if getPathType(fPath) == pathTypeFile {
 		http.ServeFile(w, req, fPath)
 		return nil
@@ -63,12 +76,12 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	navFeed := s.makeFeed(fPath, req)
 
 	var content []byte
-	var err error
+	// it is an acquisition feed
 	if getPathType(fPath) == pathTypeDirOfFiles {
 		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
 		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
-	} else {
+	} else { // it is a navegation feed
 		content, err = xml.MarshalIndent(navFeed, "  ", "    ")
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 	}
@@ -83,47 +96,33 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
-
-func (s OPDS) makeFeed(dirpath string, req *http.Request) atom.Feed {
+func (s OPDS) makeFeed(fpath string, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
 		ID(req.URL.Path).
 		Title("Catalog in " + req.URL.Path).
 		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
-	fis, _ := ioutil.ReadDir(dirpath)
-	for _, fi := range fis {
-		// set by calibre
-		if s.IsCalibreLibrary && strings.Contains(fi.Name(), ".opf") {
+	dirEntries, _ := os.ReadDir(fpath)
+	for _, entry := range dirEntries {
+		// ignoring files created by calibre
+		if s.IsCalibreLibrary && strings.Contains(entry.Name(), ".opf") ||
+			s.IsCalibreLibrary && strings.Contains(entry.Name(), "cover.") ||
+			s.IsCalibreLibrary && strings.Contains(entry.Name(), "metadata.db") ||
+			s.IsCalibreLibrary && strings.Contains(entry.Name(), "metadata_db_prefs_backup.json") {
 			continue
 		}
 
-		// set by calibre
-		if s.IsCalibreLibrary && strings.Contains(fi.Name(), "cover.") {
-			continue
-		}
-
-		// set by calibre
-		if s.IsCalibreLibrary && strings.Contains(fi.Name(), "metadata.db") {
-			continue
-		}
-
-		// set by calibre
-		if s.IsCalibreLibrary && strings.Contains(fi.Name(), "metadata_db_prefs_backup.json") {
-			continue
-		}
-
-		pathType := getPathType(filepath.Join(dirpath, fi.Name()))
+		pathType := getPathType(filepath.Join(fpath, entry.Name()))
 		feedBuilder = feedBuilder.
 			AddEntry(opds.EntryBuilder.
-				ID(req.URL.Path + fi.Name()).
-				Title(fi.Name()).
+				ID(req.URL.Path + entry.Name()).
+				Title(entry.Name()).
 				AddLink(opds.LinkBuilder.
-					Rel(getRel(fi.Name(), pathType)).
-					Title(fi.Name()).
-					Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(fi.Name()))).
-					Type(getType(fi.Name(), pathType)).
+					Rel(getRel(entry.Name(), pathType)).
+					Title(entry.Name()).
+					Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(entry.Name()))).
+					Type(getType(entry.Name(), pathType)).
 					Build()).
 				Build())
 	}
