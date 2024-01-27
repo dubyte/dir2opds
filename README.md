@@ -1,13 +1,13 @@
 # dir2opds - serve books from a directory
- dir2opds inspects the given folder and serve an OPDS 1.1 compliant server.
+ dir2opds inspects the given folder and serves an OPDS 1.1 compliant server.
 
 # Overview
  There are good options to serve books using OPDS. Calibre is good for
- that but if your server is headless, install Calibre doesn't seem to
+ that, but if your server is headless, installing Calibre doesn't seem to
  be the best option.
 
  That is why calibre2opds exists, but if you have too many books and
- you don't want to create a Calibre library dir2opds could help you to
+ you don't want to create a Calibre library, dir2opds could help you to
  have an OPDS server from a directory with one condition:
 
  - A folder should have only folders or only files.
@@ -24,7 +24,7 @@ Usage of dir2opds:
   -calibre
     	Hide files stored by calibre
   -debug
-    	If it is set it will log the requests
+    	If it is set, it will log the requests
   -dir string
     	A directory with books (default "./books")
   -host string
