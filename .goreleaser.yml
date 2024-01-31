@@ -41,18 +41,6 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-    replacements:
-      amd64: 64bit
-      386: 32bit
-      arm: ARM
-      arm64: ARM64
-      darwin: macOS
-      linux: Linux
-      windows: Windows
-      openbsd: OpenBSD
-      netbsd: NetBSD
-      freebsd: FreeBSD
-      dragonfly: DragonFlyBSD
 checksum:
   name_template: 'checksums.txt'
 snapshot:
