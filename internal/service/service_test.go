@@ -33,7 +33,7 @@ func TestHandler(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			// setup
-			s := service.OPDS{"testdata", false}
+			s := service.OPDS{"testdata", true}
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, tc.input, nil)
 			service.TimeNow = func() time.Time {

@@ -6,7 +6,6 @@ package service
 import (
 	"bytes"
 	"encoding/xml"
-	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
@@ -38,6 +37,14 @@ const (
 type OPDS struct {
 	DirRoot          string
 	IsCalibreLibrary bool
+}
+
+type IsDirer interface {
+	IsDir() bool
+}
+
+func isFile(e IsDirer) bool {
+	return !e.IsDir()
 }
 
 const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
@@ -106,10 +113,10 @@ func (s OPDS) makeFeed(fpath string, req *http.Request) atom.Feed {
 	dirEntries, _ := os.ReadDir(fpath)
 	for _, entry := range dirEntries {
 		// ignoring files created by calibre
-		if s.IsCalibreLibrary && strings.Contains(entry.Name(), ".opf") ||
-			s.IsCalibreLibrary && strings.Contains(entry.Name(), "cover.") ||
-			s.IsCalibreLibrary && strings.Contains(entry.Name(), "metadata.db") ||
-			s.IsCalibreLibrary && strings.Contains(entry.Name(), "metadata_db_prefs_backup.json") {
+		if s.IsCalibreLibrary && (strings.Contains(entry.Name(), ".opf") ||
+			strings.Contains(entry.Name(), "cover.") ||
+			strings.Contains(entry.Name(), "metadata.db") ||
+			strings.Contains(entry.Name(), "metadata_db_prefs_backup.json")) {
 			continue
 		}
 
@@ -166,22 +173,18 @@ func getPathType(dirpath string) int {
 		return pathTypeFile
 	}
 
-	fis, err := ioutil.ReadDir(dirpath)
+	dirEntries, err := os.ReadDir(dirpath)
 	if err != nil {
 		log.Printf("getPathType: readDir err: %s", err)
 	}
 
-	for _, fi := range fis {
-		if isFile(fi) {
+	for _, entry := range dirEntries {
+		if isFile(entry) {
 			return pathTypeDirOfFiles
 		}
 	}
 	// Directory of directories
 	return pathTypeDirOfDirs
-}
-
-func isFile(fi os.FileInfo) bool {
-	return !fi.IsDir()
 }
 
 func timeNowFunc() func() time.Time {
