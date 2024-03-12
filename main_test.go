@@ -77,7 +77,7 @@ func Test_absoluteCannnonicalPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := absoluteCannnonicalPath(tt.args.aPath)
+			got, err := absoluteCanonicalPath(tt.args.aPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("absoluteCannnonicalPath() error = %v, wantErr %v", err, tt.wantErr)
 				return

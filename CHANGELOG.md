@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Trusted root is obtained from dir parameter after get the absolut and cannonical path.
+- Trusted root is obtained from dir parameter after get the absolut and canonical path.
 
 ### Fixed
 
