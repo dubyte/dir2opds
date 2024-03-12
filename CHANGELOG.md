@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Trusted root is obtained from dir parameter after get the absolut and canonical path.
+- Module go version changed to 1.22
 
 ### Fixed
 
