@@ -6,6 +6,8 @@ package service
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
+	"fmt"
 	"log"
 	"mime"
 	"net/http"
@@ -35,7 +37,7 @@ const (
 )
 
 type OPDS struct {
-	DirRoot          string
+	TrustedRoot      string
 	IsCalibreLibrary bool
 }
 
@@ -62,14 +64,22 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
-	fPath := filepath.Join(s.DirRoot, urlPath)
+	fPath := filepath.Join(s.TrustedRoot, urlPath)
+
+	// verifyPath avoid the http transversal by checking the path is under DirRoot
+	_, err = verifyPath(fPath, s.TrustedRoot)
+	if err != nil {
+		log.Printf("fPath %q err: %s", fPath, err)
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
 
 	log.Printf("urlPath:'%s'", urlPath)
 
 	if _, err := os.Stat(fPath); err != nil {
 		log.Printf("fPath err: %s", err)
 		w.WriteHeader(http.StatusNotFound)
-		return nil
+		return err
 	}
 
 	log.Printf("fPath:'%s'", fPath)
@@ -190,4 +200,29 @@ func getPathType(dirpath string) int {
 func timeNowFunc() func() time.Time {
 	t := time.Now()
 	return func() time.Time { return t }
+}
+
+// verify path use a trustedRoot to avoid http transversal
+// from https://www.stackhawk.com/blog/golang-path-traversal-guide-examples-and-prevention/
+func verifyPath(path, trustedRoot string) (string, error) {
+	// clean is already used upstream but leaving this
+	// to keep the functionality of the function as close as possible to the blog.
+	c := filepath.Clean(path)
+
+	// get the canonical path
+	r, err := filepath.EvalSymlinks(c)
+	if err != nil {
+		fmt.Println("Error " + err.Error())
+		return c, errors.New("unsafe or invalid path specified")
+	}
+
+	if !inTrustedRoot(r, trustedRoot) {
+		return r, errors.New("unsafe or invalid path specified")
+	}
+
+	return r, nil
+}
+
+func inTrustedRoot(path string, trustedRoot string) bool {
+	return strings.HasPrefix(path, trustedRoot)
 }

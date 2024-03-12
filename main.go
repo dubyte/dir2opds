@@ -23,6 +23,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 
 	"github.com/dubyte/dir2opds/internal/service"
 )
@@ -44,8 +45,18 @@ func main() {
 	}
 
 	fmt.Println(startValues())
+	var err error
 
-	s := service.OPDS{DirRoot: *dirRoot, IsCalibreLibrary: *calibre}
+	// Use the absoluteCannonical path of the dir parm as the trustedRoot.
+	// helpfull avoid http trasversal. https://github.com/dubyte/dir2opds/issues/17
+	*dirRoot, err = absoluteCannnonicalPath(*dirRoot)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("%q will be used as your trusted root", *dirRoot)
+
+	s := service.OPDS{TrustedRoot: *dirRoot, IsCalibreLibrary: *calibre}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
 
@@ -65,4 +76,21 @@ func errorHandler(f func(http.ResponseWriter, *http.Request) error) http.Handler
 			log.Printf("handling %q: %v", r.RequestURI, err)
 		}
 	}
+}
+
+// absoluteCannnonicalPath returns the cannonical path of the absolute path that was passed
+func absoluteCannnonicalPath(aPath string) (string, error) {
+	// get absolute path
+	aPath, err := filepath.Abs(aPath)
+	if err != nil {
+		return "", fmt.Errorf("get absolute path %s: %w", aPath, err)
+	}
+
+	// get cannonical path
+	aPath, err = filepath.EvalSymlinks(aPath)
+	if err != nil {
+		return "", fmt.Errorf("get connonical path from absolute path %s: %w", aPath, err)
+	}
+
+	return aPath, nil
 }
