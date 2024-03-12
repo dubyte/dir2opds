@@ -1,50 +1,59 @@
 # dir2opds - serve books from a directory
+
  dir2opds inspects the given folder and serves an OPDS 1.1 compliant server.
 
-# Overview
- There are good options to serve books using OPDS. Calibre is good for
- that, but if your server is headless, installing Calibre doesn't seem to
- be the best option.
+## Overview
 
- That is why calibre2opds exists, but if you have too many books and
- you don't want to create a Calibre library, dir2opds could help you to
- have an OPDS server from a directory with one condition:
+There are good options for serving books using OPDS. Calibre is a popular
+choice, but if you have a headless server, installing Calibre might not be
+the best option.
 
- - A folder should have only folders or only files.
+That's where calibre2opds comes in. However, if you have a large number of
+books and don't want to create a Calibre library, dir2opds can help you
+set up an OPDS server from a directory with one condition:
 
-# Change log
-  - [Changelog](CHANGELOG.md)
+- A folder should contain either only folders or only files.
 
-# Installation
-    go install github.com/dubyte/dir2opds@latest
+## Change log
 
-# Usage
+- [Changelog](CHANGELOG.md)
+
+## Installation
+
+```bash
+go install github.com/dubyte/dir2opds@latest
+```
+
+## Usage
+
 ```bash
 Usage of dir2opds:
   -calibre
-    	Hide files stored by calibre
+      Hide files stored by calibre
   -debug
-    	If it is set, it will log the requests
+      If it is set, it will log the requests
   -dir string
-    	A directory with books (default "./books")
+      A directory with books (default "./books")
   -host string
-    	The server will listen in this host (default "0.0.0.0")
+      The server will listen in this host (default "0.0.0.0")
   -port string
-    	The server will listen in this port (default "8080")
-
+      The server will listen in this port (default "8080")
 ```
 
-# Tested on:
-   - Moon+ reader
+## Tested on
 
-# More information
-  - http://opds-spec.org
+- Moon+ reader
 
-# Binary release
-  - https://github.com/dubyte/dir2opds/releases
+## More information
 
+- <http://opds-spec.org>
 
-## Raspberry pi deployment using binary release
+## Binary release
+
+- <https://github.com/dubyte/dir2opds/releases>
+
+### Raspberry pi deployment using binary release
+
 ```bash
 cd && mkdir dir2opds && cd dir2opds
 
@@ -64,6 +73,7 @@ sudo systemctl start dir2opds.service
 ```
 
 /etc/systemd/system/dir2opds.service
+
 ```ini
 [Unit]
 Description=dir2opds
@@ -80,5 +90,11 @@ ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
 WantedBy=multi-user.target
 ```
 
-# How to contribute
-  - [Contributing](CONTRIBUTING.md)
+## How to contribute
+
+- [Contributing](CONTRIBUTING.md)
+
+## Special thanks
+
+- @clach04: for testing and report missing content type for comics.
+- @masked-owl: for reporting security issue about http transversal.

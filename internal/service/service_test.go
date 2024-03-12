@@ -23,11 +23,13 @@ func TestHandler(t *testing.T) {
 		input             string
 		want              string
 		WantedContentType string
+		wantedStatusCode  int
 	}{
-		"feed (dir of dirs )":           {input: "/", want: feed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=navigation"},
-		"acquisitionFeed(dir of files)": {input: "/mybook", want: acquisitionFeed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=acquisition"},
-		"servingAFile":                  {input: "/mybook/mybook.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
-		"serving file with spaces":      {input: "/mybook/mybook%20copy.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8"},
+		"feed (dir of dirs )":                 {input: "/", want: feed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=navigation", wantedStatusCode: 200},
+		"acquisitionFeed(dir of files)":       {input: "/mybook", want: acquisitionFeed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=acquisition", wantedStatusCode: 200},
+		"servingAFile":                        {input: "/mybook/mybook.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8", wantedStatusCode: 200},
+		"serving file with spaces":            {input: "/mybook/mybook%20copy.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8", wantedStatusCode: 200},
+		"http trasversal vulnerability check": {input: "/../../../../mybook", want: feed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=navigation", wantedStatusCode: 404},
 	}
 
 	for name, tc := range tests {
@@ -50,7 +52,10 @@ func TestHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			// verify
-			assert.Equal(t, 200, resp.StatusCode)
+			require.Equal(t, tc.wantedStatusCode, resp.StatusCode)
+			if tc.wantedStatusCode != http.StatusOK {
+				return
+			}
 			assert.Equal(t, tc.WantedContentType, resp.Header.Get("Content-Type"))
 			assert.Equal(t, tc.want, string(body))
 		})

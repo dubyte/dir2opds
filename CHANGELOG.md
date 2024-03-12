@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2024-03-12
+
+### Security
+
+- Fix HTTP directory traversal vulnerability.
+- Dir parameter will be used as trusted root.
+
+### Changed
+
+- Trusted root is obtained from dir parameter after get the absolut and canonical path.
+- Module go version changed to 1.22
+
+### Fixed
+
+- Fix README.md error marked by linter
+
+### Added
+
+- Adding Make file
+
 ## [1.0.5] - 2024-01-30
 
 ### Changed
