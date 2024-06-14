@@ -8,6 +8,7 @@ _obj
 _test
 .idea
 .vscode
+bin
 
 # Architecture specific extensions/prefixes
 *.[568vq]
