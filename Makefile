@@ -67,3 +67,7 @@ bin/${NAME}-windows-amd64.exe: $(SRCS) vet
 	@mkdir -p bin/windows-amd64/
 	@echo "Building windows-amd64..."
 	env GOOS=windows GOARCH=amd64 go build -o bin/windows-amd64/${NAME}.exe
+
+clean:
+	go clean
+	rm -r bin/
