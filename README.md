@@ -60,9 +60,9 @@ Usage of dir2opds:
 cd && mkdir dir2opds && cd dir2opds
 
 # get the binary
-wget https://github.com/dubyte/dir2opds/releases/download/v1.10.0/dir2opds_1.10.0_linux_armv7.tar.gz
+wget https://github.com/dubyte/dir2opds/releases/download/v1.1.0/dir2opds_1.1.0_linux_armv7.tar.gz
 
-tar xvf dir2opds_1.10.0_linux_armv7.tar.gz
+tar xvf dir2opds_1.1.0_linux_armv7.tar.gz
 
 sudo touch /etc/systemd/system/dir2opds.service
 
