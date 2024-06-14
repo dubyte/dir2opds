@@ -29,11 +29,12 @@ import (
 )
 
 var (
-	port    = flag.String("port", "8080", "The server will listen in this port")
-	host    = flag.String("host", "0.0.0.0", "The server will listen in this host")
-	dirRoot = flag.String("dir", "./books", "A directory with books")
-	debug   = flag.Bool("debug", false, "If it is set it will log the requests")
-	calibre = flag.Bool("calibre", false, "Hide files stored by calibre")
+	port         = flag.String("port", "8080", "The server will listen in this port.")
+	host         = flag.String("host", "0.0.0.0", "The server will listen in this host.")
+	dirRoot      = flag.String("dir", "./books", "A directory with books.")
+	debug        = flag.Bool("debug", false, "If it is set it will log the requests.")
+	calibre      = flag.Bool("calibre", false, "Hide files stored by calibre.")
+	hideDotFiles = flag.Bool("hide-dot-files", false, "Hide files that starts with dot.")
 )
 
 func main() {
@@ -56,7 +57,7 @@ func main() {
 
 	log.Printf("%q will be used as your trusted root", *dirRoot)
 
-	s := service.OPDS{TrustedRoot: *dirRoot, IsCalibreLibrary: *calibre}
+	s := service.OPDS{TrustedRoot: *dirRoot, HideCalibreFiles: *calibre, HideDotFiles: *hideDotFiles}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
 

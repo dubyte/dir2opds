@@ -36,9 +36,18 @@ const (
 	pathTypeDirOfFiles
 )
 
+const (
+	ignoreFile       = true
+	includeFile      = false
+	currentDirectory = "."
+	parentDirectory  = ".."
+	hiddenFilePrefix = "."
+)
+
 type OPDS struct {
 	TrustedRoot      string
-	IsCalibreLibrary bool
+	HideCalibreFiles bool
+	HideDotFiles     bool
 }
 
 type IsDirer interface {
@@ -122,11 +131,8 @@ func (s OPDS) makeFeed(fpath string, req *http.Request) atom.Feed {
 
 	dirEntries, _ := os.ReadDir(fpath)
 	for _, entry := range dirEntries {
-		// ignoring files created by calibre
-		if s.IsCalibreLibrary && (strings.Contains(entry.Name(), ".opf") ||
-			strings.Contains(entry.Name(), "cover.") ||
-			strings.Contains(entry.Name(), "metadata.db") ||
-			strings.Contains(entry.Name(), "metadata_db_prefs_backup.json")) {
+
+		if fileShouldBeIgnored(entry.Name(), s.HideCalibreFiles, s.HideDotFiles) {
 			continue
 		}
 
@@ -144,6 +150,29 @@ func (s OPDS) makeFeed(fpath string, req *http.Request) atom.Feed {
 				Build())
 	}
 	return feedBuilder.Build()
+}
+
+func fileShouldBeIgnored(filename string, hideCalibreFiles, hideDotFiles bool) bool {
+	// not ignore those directories
+	if filename == currentDirectory || filename == parentDirectory {
+		return includeFile
+	}
+
+	if hideDotFiles && strings.HasPrefix(filename, hiddenFilePrefix) {
+		return ignoreFile
+	}
+
+	if hideCalibreFiles &&
+		(strings.Contains(filename, ".opf") ||
+			strings.Contains(filename, "cover.") ||
+			strings.Contains(filename, "metadata.db") ||
+			strings.Contains(filename, "metadata_db_prefs_backup.json") ||
+			strings.Contains(filename, ".caltrash") ||
+			strings.Contains(filename, ".calnotes")) {
+		return ignoreFile
+	}
+
+	return false
 }
 
 func getRel(name string, pathType int) string {
