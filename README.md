@@ -29,15 +29,17 @@ go install github.com/dubyte/dir2opds@latest
 ```bash
 Usage of dir2opds:
   -calibre
-      Hide files stored by calibre
+        Hide files stored by calibre.
   -debug
-      If it is set, it will log the requests
+        If it is set it will log the requests.
   -dir string
-      A directory with books (default "./books")
+        A directory with books. (default "./books")
+  -hide-dot-files
+        Hide files that starts with dot.
   -host string
-      The server will listen in this host (default "0.0.0.0")
+        The server will listen in this host. (default "0.0.0.0")
   -port string
-      The server will listen in this port (default "8080")
+        The server will listen in this port. (default "8080")
 ```
 
 ## Tested on
@@ -58,9 +60,9 @@ Usage of dir2opds:
 cd && mkdir dir2opds && cd dir2opds
 
 # get the binary
-wget https://github.com/dubyte/dir2opds/releases/download/v0.0.10/dir2opds_0.0.10_Linux_ARMv7.tar.gz
+wget https://github.com/dubyte/dir2opds/releases/download/v1.10.0/dir2opds_1.10.0_linux_armv7.tar.gz
 
-tar xvf dir2opds_0.0.10_Linux_ARMv7.tar.gz
+tar xvf dir2opds_1.10.0_linux_armv7.tar.gz
 
 sudo touch /etc/systemd/system/dir2opds.service
 
