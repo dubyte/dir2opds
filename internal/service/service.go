@@ -48,6 +48,7 @@ type OPDS struct {
 	TrustedRoot      string
 	HideCalibreFiles bool
 	HideDotFiles     bool
+	NoCache          bool
 }
 
 type IsDirer interface {
@@ -97,6 +98,11 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	if getPathType(fPath) == pathTypeFile {
 		http.ServeFile(w, req, fPath)
 		return nil
+	}
+
+	if s.NoCache {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Expires", "0")
 	}
 
 	navFeed := s.makeFeed(fPath, req)

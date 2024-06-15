@@ -35,6 +35,7 @@ var (
 	debug        = flag.Bool("debug", false, "If it is set it will log the requests.")
 	calibre      = flag.Bool("calibre", false, "Hide files stored by calibre.")
 	hideDotFiles = flag.Bool("hide-dot-files", false, "Hide files that starts with dot.")
+	noCache      = flag.Bool("no-cache", false, "adds reponse headers to avoid client from caching")
 )
 
 func main() {
