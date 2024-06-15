@@ -58,7 +58,7 @@ func main() {
 
 	log.Printf("%q will be used as your trusted root", *dirRoot)
 
-	s := service.OPDS{TrustedRoot: *dirRoot, HideCalibreFiles: *calibre, HideDotFiles: *hideDotFiles}
+	s := service.OPDS{TrustedRoot: *dirRoot, HideCalibreFiles: *calibre, HideDotFiles: *hideDotFiles, NoCache: *noCache}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
 
