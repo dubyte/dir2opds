@@ -38,6 +38,8 @@ Usage of dir2opds:
         Hide files that starts with dot.
   -host string
         The server will listen in this host. (default "0.0.0.0")
+  -no-cache
+        adds reponse headers to avoid client from caching.
   -port string
         The server will listen in this port. (default "8080")
 ```
