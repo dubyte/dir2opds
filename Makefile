@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := build
 .PHONY: fmt vet build
 
-NAME := dir2opds
+NAME := $(shell basename $(shell go list -m))
 SRCS := $(wildcard *.go) $(wildcard */*.go)
 
 fmt: $(SRCS)
