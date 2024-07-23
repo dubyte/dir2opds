@@ -1,0 +1,15 @@
+[Unit]
+Description=dir2opds OPDS 1.1 compliant server
+Documentation=https://github.com/dubyte/dir2opds
+Requires=network-online.target
+
+[Service]
+Type=simple
+User=dir2opds
+Group=dir2opds
+ExecStart=/usr/local/bin/dir2opds -host 0.0.0.0 -port 8080 -dir /var/www/dir2opds -calibre=true -hide-dot-files=true -no-cache=true -debug=false
+Restart=always
+RestartSec=30sec
+
+[Install]
+WantedBy=multi-user.target
