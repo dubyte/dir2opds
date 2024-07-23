@@ -31,3 +31,7 @@ dir2opds
 
 # goreleaser
 dist/
+
+# OS specific junk
+# macOS
+.DS_Store
