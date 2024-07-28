@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+	NOTE: This service manifest is not editable; it's contents will
+	be overwritten by package or patch operations, including
+	operating system upgrade.
+	Change file elsewhere and import again:
+	'svccfg validate <file>.xml'
+	'svccfg import <file>.xml'
+-->
+
+<service_bundle type='manifest' name='dir2opds'>
+
+<service
+	name='network/dir2opds'
+	type='service'
+	version='1'>
+
+	<create_default_instance enabled='false' />
+
+	<single_instance />
+
+	<dependency name="loopback"
+		grouping="require_any"
+		restart_on="error"
+		type="service">
+			<service_fmri value="svc:/network/loopback" />
+	</dependency>
+
+	<dependency name='network'
+		grouping='require_any'
+		restart_on='error'
+		type='service'>
+			<service_fmri value='svc:/milestone/network'/>
+	</dependency>
+
+	<!-- Must have all local filesystems mounted before we can serve files -->
+	<dependency name='filesystem-local'
+		grouping='require_all'
+		restart_on='error'
+		type='service'>
+			<service_fmri value='svc:/system/filesystem/local'/>
+	</dependency>
+
+	<dependent
+		name='dir2opds_multi-user'
+		grouping='optional_all'
+		restart_on='none'>
+		<service_fmri value='svc:/milestone/multi-user' />
+	</dependent>
+
+	<exec_method
+		type='method'
+		name='start'
+		exec='%{config/exec} -host %{config/host} -port %{config/port} -dir %{config/dir} -calibre=%{config/calibre} -hide-dot-files=%{config/hidedotfiles} -no-cache=%{config/nocache} -debug=%{config/debug}'
+		timeout_seconds='60'>
+		<method_context security_flags='aslr'>
+			<!-- user must have an existing home dir, otherwise service start fails -->
+			<method_credential
+				user='dir2opds'
+				group='dir2opds'
+				privileges='basic,net_privaddr,!proc_info,!proc_session,!file_link_any' />
+		</method_context>
+	</exec_method>
+
+	<exec_method
+		type='method'
+		name='stop'
+		exec=':kill'
+		timeout_seconds='60' />
+
+	<property_group name='startd' type='framework'>
+		<propval name='duration' type='astring' value='child' /> <!-- service runs in foreground -->
+	</property_group>
+
+	<property_group name='config' type='application'>
+		<propval name='exec' type='astring' value='/usr/local/bin/dir2opds' />
+		<propval name='host' type='astring' value='0.0.0.0' />
+		<propval name='port' type='astring' value='8080' />
+		<propval name='dir' type='astring' value='/var/www/dir2opds' />
+		<propval name='calibre' type='astring' value='true' />
+		<propval name='hidedotfiles' type='astring' value='true' />
+		<propval name='nocache' type='astring' value='true' />
+		<propval name='debug' type='astring' value='false' />
+	</property_group>
+
+	<stability value='Evolving' />
+
+	<template>
+		<common_name>
+			<loctext xml:lang='C'>dir2opds OPDS 1.1 compliant server</loctext>
+		</common_name>
+	</template>
+
+</service>
+
+</service_bundle>
