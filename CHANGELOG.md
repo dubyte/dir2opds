@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2024-12-10
+
+### Added
+
+- pod container creation by @kulak
+
+### Changed
+
+- fail to start will log error on stderr in this case when book dir was not found.
+
 ## [1.2.0] - 2024-06-18
 
 ### Added
