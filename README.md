@@ -94,6 +94,28 @@ ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
 WantedBy=multi-user.target
 ```
 
+## Rootless Container with podman
+
+```sh
+# build image
+podman build -t localhost/dir2opds .
+# prepare Books directory
+mkdir /data/Books
+chown -R $USER:$USER /data/Books
+# run built image
+podman run --name dir2opds --rm --userns=keep-id --mount type=bind,src=/data/Books,dst=/books,Z --publish 8008:8080 -i -t localhost/dir2opds /dir2opds -debug
+```
+
+where
+
+- `/data/Books` is a path to directory containing books.
+
+Test from host with
+
+```sh
+curl http://localhost:8008
+```
+
 ## How to contribute
 
 - [Contributing](CONTRIBUTING.md)
