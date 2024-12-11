@@ -23,6 +23,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/dubyte/dir2opds/internal/service"
@@ -46,19 +47,19 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
-	fmt.Println(startValues())
-	var err error
-
 	// Use the absoluteCanonical path of the dir parm as the trustedRoot.
 	// helpfull avoid http trasversal. https://github.com/dubyte/dir2opds/issues/17
-	*dirRoot, err = absoluteCanonicalPath(*dirRoot)
+	absolutePath, err := absoluteCanonicalPath(*dirRoot)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 
-	log.Printf("%q will be used as your trusted root", *dirRoot)
+	log.Printf("%q will be used as your trusted root", absolutePath)
 
-	s := service.OPDS{TrustedRoot: *dirRoot, HideCalibreFiles: *calibre, HideDotFiles: *hideDotFiles, NoCache: *noCache}
+	fmt.Println(startValues())
+
+	s := service.OPDS{TrustedRoot: absolutePath, HideCalibreFiles: *calibre, HideDotFiles: *hideDotFiles, NoCache: *noCache}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
 
