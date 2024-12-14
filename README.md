@@ -46,7 +46,23 @@ Usage of dir2opds:
 
 ## Tested on
 
-- Moon+ reader
+### Moon+ reader
+
+### Cantook
+
+It works on Cantook reader for me on iPhone.
+
+<https://apps.apple.com/us/app/cantook-by-aldiko/id1476410111>
+
+It would be nice if this was stated in README.
+
+### KYBook 3
+
+It works with [KyBook 3 Ebook Reader](https://apps.apple.com/us/app/kybook-3-ebook-reader/id1348198785) if access to Local Network is enabled in settings.  
+
+To enable access go to Settings -> Apps -> KyBook 3 -> Local Network (checked).
+
+It seems that KyBook is so old, that it does not trigger access prompt from iOS, so it has to be configured manually.
 
 ## More information
 
