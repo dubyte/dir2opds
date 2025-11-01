@@ -1,6 +1,6 @@
 module github.com/dubyte/dir2opds
 
-go 1.22.0
+go 1.25.3
 
 require (
 	github.com/lann/builder v0.0.0-20150808151131-f22ce00fd939
