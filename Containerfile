@@ -9,3 +9,4 @@ RUN go build -o /app/dir2opds
 # Stage 2: Final Image
 FROM docker.io/alpine
 COPY --from=builder /app/dir2opds /dir2opds
+ENTRYPOINT ["/dir2opds"]
