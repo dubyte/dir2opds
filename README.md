@@ -1,6 +1,6 @@
 # dir2opds - serve books from a directory
 
- dir2opds inspects the given folder and serves an OPDS 1.1 compliant server.
+ dir2opds inspects the given folder and acts as an OPDS 1.1–compliant server.
 
 ## Overview
 
@@ -14,7 +14,7 @@ set up an OPDS server from a directory with one condition:
 
 - A folder should contain either only folders or only files.
 
-## Change log
+## Changelog
 
 - [Changelog](CHANGELOG.md)
 
@@ -35,34 +35,32 @@ Usage of dir2opds:
   -dir string
         A directory with books. (default "./books")
   -hide-dot-files
-        Hide files that starts with dot.
+        Hide files that start with a dot.
   -host string
-        The server will listen in this host. (default "0.0.0.0")
+        The server will listen on this host. (default "0.0.0.0")
   -no-cache
-        adds reponse headers to avoid client from caching.
+        Add response headers to prevent the client from caching.
   -port string
-        The server will listen in this port. (default "8080")
+        The server will listen on this port. (default "8080")
 ```
 
 ## Tested on
 
-### Moon+ reader
+### Moon+ Reader
 
 ### Cantook
 
-It works on Cantook reader for me on iPhone.
+Tested on iPhone with the Cantook app.
 
 <https://apps.apple.com/us/app/cantook-by-aldiko/id1476410111>
-
-It would be nice if this was stated in README.
 
 ### KYBook 3
 
 It works with [KyBook 3 Ebook Reader](https://apps.apple.com/us/app/kybook-3-ebook-reader/id1348198785) if access to Local Network is enabled in settings.  
 
-To enable access go to Settings -> Apps -> KyBook 3 -> Local Network (checked).
+To enable access, go to Settings -> Apps -> KyBook 3 -> Local Network (checked).
 
-It seems that KyBook is so old, that it does not trigger access prompt from iOS, so it has to be configured manually.
+It seems that KyBook is so old that it does not trigger the access prompt on iOS, so it has to be configured manually.
 
 ## More information
 
@@ -72,19 +70,19 @@ It seems that KyBook is so old, that it does not trigger access prompt from iOS,
 
 - <https://github.com/dubyte/dir2opds/releases>
 
-### Raspberry pi deployment using binary release
+### Raspberry Pi deployment using binary release
 
 ```bash
 cd && mkdir dir2opds && cd dir2opds
 
-# get the binary
-wget https://github.com/dubyte/dir2opds/releases/download/v1.1.0/dir2opds_1.1.0_linux_armv7.tar.gz
+# get the binary (replace v1.3.2 with the release that matches your system)
+wget https://github.com/dubyte/dir2opds/releases/download/v1.3.2/dir2opds_1.3.2_linux_armv7.tar.gz
 
-tar xvf dir2opds_1.1.0_linux_armv7.tar.gz
+tar xvf dir2opds_1.3.2_linux_armv7.tar.gz
 
 sudo touch /etc/systemd/system/dir2opds.service
 
-# Paste the content below but rember to pass the fullpath of your books in -dir
+# Paste the content below but remember to pass the full path of your books in -dir
 sudo nano /etc/systemd/system/dir2opds.service
 
 sudo systemctl enable dir2opds.service
@@ -122,9 +120,9 @@ chown -R $USER:$USER /data/Books
 podman run --name dir2opds --rm --userns=keep-id --mount type=bind,src=/data/Books,dst=/books,Z --publish 8008:8080 -i -t localhost/dir2opds /dir2opds -debug
 ```
 
-where
+Where:
 
-- `/data/Books` is a path to directory containing books.
+- `/data/Books` is the path to the directory containing your books.
 
 Test from host with
 
@@ -138,5 +136,5 @@ curl http://localhost:8008
 
 ## Special thanks
 
-- @clach04: for testing and report missing content type for comics.
-- @masked-owl: for reporting security issue about http transversal.
+- @clach04: for testing and reporting missing content type for comics.
+- @masked-owl: for reporting the security issue about HTTP traversal.
