@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,7 +58,7 @@ func TestErrorHandler(t *testing.T) {
 	assert.Contains(t, buf.String(), `handling "/": scary error`)
 }
 
-func Test_absoluteCannnonicalPath(t *testing.T) {
+func Test_absoluteCanonicalPath(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Errorf("not possible to get current dir")
@@ -72,19 +72,19 @@ func Test_absoluteCannnonicalPath(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{name: "dir relative path", args: args{aPath: "./opds"}, want: path.Join(wd, "opds"), wantErr: false},
+		{name: "dir relative path", args: args{aPath: "./opds"}, want: filepath.Join(wd, "opds"), wantErr: false},
 		{name: "dir not exists", args: args{aPath: "books"}, want: "", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := absoluteCanonicalPath(tt.args.aPath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("absoluteCannnonicalPath() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("absoluteCanonicalPath() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if got != tt.want {
-				t.Errorf("absoluteCannnonicalPath() = %q, want %q", got, tt.want)
+				t.Errorf("absoluteCanonicalPath() = %q, want %q", got, tt.want)
 			}
 		})
 	}

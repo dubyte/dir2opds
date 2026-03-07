@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"log"
 	"mime"
 	"net/http"
@@ -63,9 +62,9 @@ const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigatio
 
 var TimeNow = timeNowFunc()
 
-// Handler serve the content of a book file or
+// Handler serves the content of a book file or
 // returns an Acquisition Feed when the entries are documents or
-// returns an Navegation Feed when the entries are other folders
+// returns a Navigation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	var err error
 	urlPath, err := url.PathUnescape(req.URL.Path)
@@ -89,7 +88,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	if _, err := os.Stat(fPath); err != nil {
 		log.Printf("fPath err: %s", err)
 		w.WriteHeader(http.StatusNotFound)
-		return err
+		return nil
 	}
 
 	log.Printf("fPath:'%s'", fPath)
@@ -113,7 +112,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
 		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
-	} else { // it is a navegation feed
+	} else { // it is a navigation feed
 		content, err = xml.MarshalIndent(navFeed, "  ", "    ")
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 	}
@@ -135,7 +134,11 @@ func (s OPDS) makeFeed(fpath string, req *http.Request) atom.Feed {
 		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
-	dirEntries, _ := os.ReadDir(fpath)
+	dirEntries, err := os.ReadDir(fpath)
+	if err != nil {
+		log.Printf("makeFeed ReadDir %q: %s", fpath, err)
+		return feedBuilder.Build()
+	}
 	for _, entry := range dirEntries {
 
 		if fileShouldBeIgnored(entry.Name(), s.HideCalibreFiles, s.HideDotFiles) {
@@ -212,6 +215,7 @@ func getPathType(dirpath string) int {
 	fi, err := os.Stat(dirpath)
 	if err != nil {
 		log.Printf("getPathType os.Stat err: %s", err)
+		return pathTypeFile
 	}
 
 	if isFile(fi) {
@@ -237,7 +241,7 @@ func timeNowFunc() func() time.Time {
 	return func() time.Time { return t }
 }
 
-// verify path use a trustedRoot to avoid http transversal
+// verifyPath uses trustedRoot to avoid http path traversal
 // from https://www.stackhawk.com/blog/golang-path-traversal-guide-examples-and-prevention/
 func verifyPath(path, trustedRoot string) (string, error) {
 	// clean is already used upstream but leaving this
@@ -247,7 +251,7 @@ func verifyPath(path, trustedRoot string) (string, error) {
 	// get the canonical path
 	r, err := filepath.EvalSymlinks(c)
 	if err != nil {
-		fmt.Println("Error " + err.Error())
+		log.Printf("verifyPath: %s", err)
 		return c, errors.New("unsafe or invalid path specified")
 	}
 
@@ -259,5 +263,11 @@ func verifyPath(path, trustedRoot string) (string, error) {
 }
 
 func inTrustedRoot(path string, trustedRoot string) bool {
-	return strings.HasPrefix(path, trustedRoot)
+	path = filepath.Clean(path)
+	trustedRoot = filepath.Clean(trustedRoot)
+	if path == trustedRoot {
+		return true
+	}
+	sep := string(filepath.Separator)
+	return strings.HasPrefix(path, trustedRoot+sep)
 }

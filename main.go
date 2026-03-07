@@ -47,8 +47,8 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
-	// Use the absoluteCanonical path of the dir parm as the trustedRoot.
-	// helpfull avoid http trasversal. https://github.com/dubyte/dir2opds/issues/17
+	// Use the absolute canonical path of the dir parm as the trustedRoot.
+	// Helps avoid http path traversal. https://github.com/dubyte/dir2opds/issues/17
 	absolutePath, err := absoluteCanonicalPath(*dirRoot)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -92,7 +92,7 @@ func absoluteCanonicalPath(aPath string) (string, error) {
 	// get canonical path
 	aPath, err = filepath.EvalSymlinks(aPath)
 	if err != nil {
-		return "", fmt.Errorf("get connonical path from absolute path %s: %w", aPath, err)
+		return "", fmt.Errorf("get canonical path from absolute path %s: %w", aPath, err)
 	}
 
 	return aPath, nil
