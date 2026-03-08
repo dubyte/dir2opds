@@ -74,10 +74,10 @@ It seems that KyBook is so old that it does not trigger the access prompt on iOS
 ```bash
 cd && mkdir dir2opds && cd dir2opds
 
-# get the binary (replace v1.4.0 with the release that matches your system)
-wget https://github.com/dubyte/dir2opds/releases/download/v1.4.0/dir2opds_1.4.0_linux_armv7.tar.gz
+# get the binary (replace v1.5.0 with the release that matches your system)
+wget https://github.com/dubyte/dir2opds/releases/download/v1.5.0/dir2opds_1.5.0_linux_armv7.tar.gz
 
-tar xvf dir2opds_1.4.0_linux_armv7.tar.gz
+tar xvf dir2opds_1.5.0_linux_armv7.tar.gz
 
 sudo touch /etc/systemd/system/dir2opds.service
 
