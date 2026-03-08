@@ -50,6 +50,18 @@ type OPDS struct {
 	NoCache          bool
 }
 
+type Catalog struct {
+	ID      string
+	Title   string
+	Type    int
+	Entries []CatalogEntry
+}
+
+type CatalogEntry struct {
+	Name string
+	Type int
+}
+
 type IsDirer interface {
 	IsDir() bool
 }
@@ -61,6 +73,34 @@ func isFile(e IsDirer) bool {
 const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
 
 var TimeNow = timeNowFunc()
+
+// Scan inspects the directory and builds a Catalog model
+func (s OPDS) Scan(fPath string, urlPath string) (*Catalog, error) {
+	dirEntries, err := os.ReadDir(fPath)
+	if err != nil {
+		return nil, err
+	}
+
+	catalog := &Catalog{
+		ID:    urlPath,
+		Title: "Catalog in " + urlPath,
+		Type:  getPathType(fPath),
+	}
+
+	for _, entry := range dirEntries {
+		if fileShouldBeIgnored(entry.Name(), s.HideCalibreFiles, s.HideDotFiles) {
+			continue
+		}
+
+		entryPath := filepath.Join(fPath, entry.Name())
+		catalog.Entries = append(catalog.Entries, CatalogEntry{
+			Name: entry.Name(),
+			Type: getPathType(entryPath),
+		})
+	}
+
+	return catalog, nil
+}
 
 // Handler serves the content of a book file or
 // returns an Acquisition Feed when the entries are documents or
@@ -93,8 +133,10 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 
 	log.Printf("fPath:'%s'", fPath)
 
+	pathType := getPathType(fPath)
+
 	// it's a file just serve the file
-	if getPathType(fPath) == pathTypeFile {
+	if pathType == pathTypeFile {
 		http.ServeFile(w, req, fPath)
 		return nil
 	}
@@ -104,11 +146,17 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		w.Header().Add("Expires", "0")
 	}
 
-	navFeed := s.makeFeed(fPath, req)
+	catalog, err := s.Scan(fPath, urlPath)
+	if err != nil {
+		log.Printf("error while scanning '%s': %s", fPath, err)
+		return err
+	}
+
+	navFeed := s.makeFeed(catalog, req)
 
 	var content []byte
 	// it is an acquisition feed
-	if getPathType(fPath) == pathTypeDirOfFiles {
+	if catalog.Type == pathTypeDirOfFiles {
 		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
 		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
@@ -127,34 +175,23 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func (s OPDS) makeFeed(fpath string, req *http.Request) atom.Feed {
+func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
-		ID(req.URL.Path).
-		Title("Catalog in " + req.URL.Path).
+		ID(catalog.ID).
+		Title(catalog.Title).
 		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
-	dirEntries, err := os.ReadDir(fpath)
-	if err != nil {
-		log.Printf("makeFeed ReadDir %q: %s", fpath, err)
-		return feedBuilder.Build()
-	}
-	for _, entry := range dirEntries {
-
-		if fileShouldBeIgnored(entry.Name(), s.HideCalibreFiles, s.HideDotFiles) {
-			continue
-		}
-
-		pathType := getPathType(filepath.Join(fpath, entry.Name()))
+	for _, entry := range catalog.Entries {
 		feedBuilder = feedBuilder.
 			AddEntry(opds.EntryBuilder.
-				ID(req.URL.Path + entry.Name()).
-				Title(entry.Name()).
+				ID(req.URL.Path + entry.Name).
+				Title(entry.Name).
 				AddLink(opds.LinkBuilder.
-					Rel(getRel(entry.Name(), pathType)).
-					Title(entry.Name()).
-					Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(entry.Name()))).
-					Type(getType(entry.Name(), pathType)).
+					Rel(getRel(entry.Name, entry.Type)).
+					Title(entry.Name).
+					Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(entry.Name))).
+					Type(getType(entry.Name, entry.Type)).
 					Build()).
 				Build())
 	}
