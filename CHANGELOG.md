@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-03-08
+
+### Added
+
+- `-sort` flag to sort entries by name, date, or size.
+- `-show-covers` flag to automatically detect and show `cover.jpg` or `folder.jpg` as catalog covers.
+- `-search` flag to enable a basic recursive filename search (OpenSearch compliant).
+- `-mime-map` flag to allow custom MIME-type mapping for file extensions.
+- `-extract-metadata` flag to extract Title and Author from EPUB and PDF files.
+
+### Changed
+
+- Catalog model expanded to include metadata for sorting, cover support and book metadata.
+- Refactor `Handler` and `makeFeed` to use the new `Catalog` model for better separation of concerns.
+
 ## [1.5.0] - 2026-03-08
 
 ### Added

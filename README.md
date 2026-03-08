@@ -33,14 +33,24 @@ Usage of dir2opds:
         If it is set it will log the requests.
   -dir string
         A directory with books. (default "./books")
+  -extract-metadata
+        Extract metadata (title, author) from EPUB and PDF files.
   -hide-dot-files
         Hide files that start with a dot.
   -host string
         The server will listen on this host. (default "0.0.0.0")
+  -mime-map string
+        Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')
   -no-cache
         Add response headers to prevent the client from caching.
   -port string
         The server will listen on this port. (default "8080")
+  -search
+        Enable basic filename search.
+  -show-covers
+        Show cover.jpg or folder.jpg as catalog cover.
+  -sort string
+        Sort entries by: name, date, size. (default "name")
 ```
 
 ## Tested on
@@ -74,10 +84,10 @@ It seems that KyBook is so old that it does not trigger the access prompt on iOS
 ```bash
 cd && mkdir dir2opds && cd dir2opds
 
-# get the binary (replace v1.5.0 with the release that matches your system)
-wget https://github.com/dubyte/dir2opds/releases/download/v1.5.0/dir2opds_1.5.0_linux_armv7.tar.gz
+# get the binary (replace v1.6.0 with the release that matches your system)
+wget https://github.com/dubyte/dir2opds/releases/download/v1.6.0/dir2opds_1.6.0_linux_armv7.tar.gz
 
-tar xvf dir2opds_1.5.0_linux_armv7.tar.gz
+tar xvf dir2opds_1.6.0_linux_armv7.tar.gz
 
 sudo touch /etc/systemd/system/dir2opds.service
 

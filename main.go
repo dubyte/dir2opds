@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/dubyte/dir2opds/internal/service"
 )
@@ -37,6 +38,11 @@ var (
 	calibre      = flag.Bool("calibre", false, "Hide files stored by calibre.")
 	hideDotFiles = flag.Bool("hide-dot-files", false, "Hide files that starts with dot.")
 	noCache      = flag.Bool("no-cache", false, "adds reponse headers to avoid client from caching.")
+	sortBy       = flag.String("sort", "name", "Sort entries by: name, date, size.")
+	showCovers   = flag.Bool("show-covers", false, "Show cover.jpg or folder.jpg as catalog cover.")
+	mimeMapStr   = flag.String("mime-map", "", "Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')")
+	searchEnable = flag.Bool("search", false, "Enable basic filename search.")
+	extractMeta  = flag.Bool("extract-metadata", false, "Extract metadata (title, author) from EPUB and PDF files.")
 )
 
 func main() {
@@ -59,11 +65,40 @@ func main() {
 
 	fmt.Println(startValues())
 
-	s := service.OPDS{TrustedRoot: absolutePath, HideCalibreFiles: *calibre, HideDotFiles: *hideDotFiles, NoCache: *noCache}
+	s := service.OPDS{
+		TrustedRoot:      absolutePath,
+		HideCalibreFiles: *calibre,
+		HideDotFiles:     *hideDotFiles,
+		NoCache:          *noCache,
+		SortBy:           *sortBy,
+		ShowCovers:       *showCovers,
+		MimeMap:          parseMimeMap(*mimeMapStr),
+		EnableSearch:     *searchEnable,
+		ExtractMetadata:  *extractMeta,
+	}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
+	if *searchEnable {
+		http.HandleFunc("/search", errorHandler(s.SearchHandler))
+		http.HandleFunc("/opensearch.xml", s.OpenSearchHandler)
+	}
 
 	log.Fatal(http.ListenAndServe(*host+":"+*port, nil))
+}
+
+func parseMimeMap(s string) map[string]string {
+	if s == "" {
+		return nil
+	}
+	m := make(map[string]string)
+	pairs := strings.Split(s, ",")
+	for _, pair := range pairs {
+		kv := strings.Split(pair, ":")
+		if len(kv) == 2 {
+			m[kv[0]] = kv[1]
+		}
+	}
+	return m
 }
 
 func startValues() string {
