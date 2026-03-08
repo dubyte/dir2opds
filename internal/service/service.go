@@ -4,6 +4,8 @@
 package service
 
 import (
+	"archive/zip"
+	"bufio"
 	"bytes"
 	"encoding/xml"
 	"errors"
@@ -13,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -48,6 +51,11 @@ type OPDS struct {
 	HideCalibreFiles bool
 	HideDotFiles     bool
 	NoCache          bool
+	SortBy           string // name, date, size
+	ShowCovers       bool
+	MimeMap          map[string]string
+	EnableSearch     bool
+	ExtractMetadata  bool
 }
 
 type Catalog struct {
@@ -55,11 +63,16 @@ type Catalog struct {
 	Title   string
 	Type    int
 	Entries []CatalogEntry
+	Cover   string
 }
 
 type CatalogEntry struct {
-	Name string
-	Type int
+	Name    string
+	Type    int
+	ModTime time.Time
+	Size    int64
+	Title   string
+	Author  string
 }
 
 type IsDirer interface {
@@ -92,14 +105,173 @@ func (s OPDS) Scan(fPath string, urlPath string) (*Catalog, error) {
 			continue
 		}
 
+		if s.ShowCovers && (entry.Name() == "cover.jpg" || entry.Name() == "folder.jpg") {
+			catalog.Cover = filepath.Join(urlPath, entry.Name())
+			continue
+		}
+
 		entryPath := filepath.Join(fPath, entry.Name())
+		info, err := entry.Info()
+		if err != nil {
+			log.Printf("error getting info for %s: %s", entryPath, err)
+			continue
+		}
+
 		catalog.Entries = append(catalog.Entries, CatalogEntry{
-			Name: entry.Name(),
-			Type: getPathType(entryPath),
+			Name:    entry.Name(),
+			Type:    getPathType(entryPath),
+			ModTime: info.ModTime(),
+			Size:    info.Size(),
 		})
+
+		if s.ExtractMetadata && !entry.IsDir() {
+			idx := len(catalog.Entries) - 1
+			title, author := extractMetadata(entryPath)
+			if title != "" {
+				catalog.Entries[idx].Title = title
+			}
+			if author != "" {
+				catalog.Entries[idx].Author = author
+			}
+		}
 	}
 
+	s.sortEntries(catalog.Entries)
+
 	return catalog, nil
+}
+
+func extractMetadata(path string) (string, string) {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".epub":
+		return extractEpubMetadata(path)
+	case ".pdf":
+		return extractPdfMetadata(path)
+	}
+	return "", ""
+}
+
+func extractEpubMetadata(path string) (string, string) {
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return "", ""
+	}
+	defer r.Close()
+
+	var opfPath string
+	for _, f := range r.File {
+		if strings.HasSuffix(f.Name, ".opf") {
+			opfPath = f.Name
+			break
+		}
+	}
+
+	if opfPath == "" {
+		return "", ""
+	}
+
+	f, err := r.Open(opfPath)
+	if err != nil {
+		return "", ""
+	}
+	defer f.Close()
+
+	var opf struct {
+		Metadata struct {
+			Title   string `xml:"title"`
+			Creator string `xml:"creator"`
+		} `xml:"metadata"`
+	}
+
+	decoder := xml.NewDecoder(f)
+	if err := decoder.Decode(&opf); err != nil {
+		return "", ""
+	}
+
+	// If standard unmarshal fails to get values due to namespaces
+	if opf.Metadata.Title == "" || opf.Metadata.Creator == "" {
+		// Re-open for a more brute-force search if needed, but let's try with Case Insensitive or without namespaces
+		// A common trick is to use a decoder that ignores namespaces
+		f.Close()
+		f, _ = r.Open(opfPath)
+		decoder = xml.NewDecoder(f)
+		decoder.DefaultSpace = "http://purl.org/dc/elements/1.1/" // Try DC namespace
+		var opf2 struct {
+			Metadata struct {
+				Title   string `xml:"title"`
+				Creator string `xml:"creator"`
+			} `xml:"metadata"`
+		}
+		_ = decoder.Decode(&opf2)
+		if opf2.Metadata.Title != "" {
+			opf.Metadata.Title = opf2.Metadata.Title
+		}
+		if opf2.Metadata.Creator != "" {
+			opf.Metadata.Creator = opf2.Metadata.Creator
+		}
+	}
+
+	return opf.Metadata.Title, opf.Metadata.Creator
+}
+
+func extractPdfMetadata(path string) (string, string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", ""
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	var title, author string
+	// Only scan first 4KB to keep it fast
+	maxLines := 100
+	for i := 0; i < maxLines && scanner.Scan(); i++ {
+		line := scanner.Text()
+		if title == "" && strings.Contains(line, "/Title") {
+			title = parsePdfValue(line, "/Title")
+		}
+		if author == "" && strings.Contains(line, "/Author") {
+			author = parsePdfValue(line, "/Author")
+		}
+		if title != "" && author != "" {
+			break
+		}
+	}
+	return title, author
+}
+
+func parsePdfValue(line, key string) string {
+	idx := strings.Index(line, key)
+	if idx == -1 {
+		return ""
+	}
+	start := strings.Index(line[idx:], "(")
+	if start == -1 {
+		return ""
+	}
+	end := strings.Index(line[idx+start:], ")")
+	if end == -1 {
+		return ""
+	}
+	return line[idx+start+1 : idx+start+end]
+}
+
+func (s OPDS) sortEntries(entries []CatalogEntry) {
+	switch s.SortBy {
+	case "date":
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].ModTime.After(entries[j].ModTime)
+		})
+	case "size":
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].Size > entries[j].Size
+		})
+	default: // name
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].Name < entries[j].Name
+		})
+	}
 }
 
 // Handler serves the content of a book file or
@@ -175,6 +347,73 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
+// SearchHandler performs a basic filename search
+func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
+	query := req.URL.Query().Get("q")
+	if query == "" {
+		return s.Handler(w, req)
+	}
+
+	catalog := &Catalog{
+		ID:    "search:" + query,
+		Title: "Search results for: " + query,
+		Type:  pathTypeDirOfFiles,
+	}
+
+	err := filepath.Walk(s.TrustedRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fileShouldBeIgnored(info.Name(), s.HideCalibreFiles, s.HideDotFiles) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if !info.IsDir() && strings.Contains(strings.ToLower(info.Name()), strings.ToLower(query)) {
+			relPath, _ := filepath.Rel(s.TrustedRoot, path)
+			catalog.Entries = append(catalog.Entries, CatalogEntry{
+				Name:    relPath,
+				Type:    pathTypeFile,
+				ModTime: info.ModTime(),
+				Size:    info.Size(),
+			})
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	navFeed := s.makeFeed(catalog, req)
+	acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
+	content, err := xml.MarshalIndent(acFeed, "  ", "    ")
+	if err != nil {
+		return err
+	}
+
+	w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
+	content = append([]byte(xml.Header), content...)
+	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
+	return nil
+}
+
+// OpenSearchHandler serves the OpenSearch description document
+func (s OPDS) OpenSearchHandler(w http.ResponseWriter, req *http.Request) {
+	xml := `<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>dir2opds</ShortName>
+  <Description>Search books in dir2opds</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <OutputEncoding>UTF-8</OutputEncoding>
+  <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition" template="/search?q={searchTerms}"/>
+</OpenSearchDescription>`
+	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
+	w.Write([]byte(xml))
+}
+
 func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
 		ID(catalog.ID).
@@ -182,18 +421,48 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
 
+	// Add search link if enabled
+	if s.EnableSearch {
+		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+			Rel("search").
+			Href("/opensearch.xml").
+			Type("application/opensearchdescription+xml").
+			Build())
+	}
+
+	if catalog.Cover != "" {
+		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+			Rel("http://opds-spec.org/image").
+			Href(catalog.Cover).
+			Type(mime.TypeByExtension(filepath.Ext(catalog.Cover))).
+			Build())
+		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+			Rel("http://opds-spec.org/image/thumbnail").
+			Href(catalog.Cover).
+			Type(mime.TypeByExtension(filepath.Ext(catalog.Cover))).
+			Build())
+	}
+
 	for _, entry := range catalog.Entries {
-		feedBuilder = feedBuilder.
-			AddEntry(opds.EntryBuilder.
-				ID(req.URL.Path + entry.Name).
+		title := entry.Name
+		if entry.Title != "" {
+			title = entry.Title
+		}
+		entryBuilder := opds.EntryBuilder.
+			ID(req.URL.Path + entry.Name).
+			Title(title).
+			AddLink(opds.LinkBuilder.
+				Rel(getRel(entry.Name, entry.Type)).
 				Title(entry.Name).
-				AddLink(opds.LinkBuilder.
-					Rel(getRel(entry.Name, entry.Type)).
-					Title(entry.Name).
-					Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(entry.Name))).
-					Type(getType(entry.Name, entry.Type)).
-					Build()).
+				Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(entry.Name))).
+				Type(s.getType(entry.Name, entry.Type)).
 				Build())
+
+		if entry.Author != "" {
+			entryBuilder = entryBuilder.Author(&atom.Person{Name: entry.Author})
+		}
+
+		feedBuilder = feedBuilder.AddEntry(entryBuilder.Build())
 	}
 	return feedBuilder.Build()
 }
@@ -235,10 +504,16 @@ func getRel(name string, pathType int) string {
 	return "http://opds-spec.org/acquisition"
 }
 
-func getType(name string, pathType int) string {
+func (s OPDS) getType(name string, pathType int) string {
 	switch pathType {
 	case pathTypeFile:
-		return mime.TypeByExtension(filepath.Ext(name))
+		ext := filepath.Ext(name)
+		if s.MimeMap != nil {
+			if mType, ok := s.MimeMap[ext]; ok {
+				return mType
+			}
+		}
+		return mime.TypeByExtension(ext)
 	case pathTypeDirOfFiles:
 		return "application/atom+xml;profile=opds-catalog;kind=acquisition"
 	case pathTypeDirOfDirs:

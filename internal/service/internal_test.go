@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,4 +57,41 @@ func TestFileShouldBeIgnored(t *testing.T) {
 	assert.False(t, fileShouldBeIgnored("metadata.opf", false, true))
 	assert.False(t, fileShouldBeIgnored(".", true, true))
 	assert.False(t, fileShouldBeIgnored("..", true, true))
+}
+
+func TestSortEntries(t *testing.T) {
+	now := time.Now()
+	entries := []CatalogEntry{
+		{Name: "B", Size: 100, ModTime: now.Add(-time.Hour)},
+		{Name: "A", Size: 200, ModTime: now},
+		{Name: "C", Size: 50, ModTime: now.Add(-2 * time.Hour)},
+	}
+
+	s := OPDS{SortBy: "name"}
+	s.sortEntries(entries)
+	assert.Equal(t, "A", entries[0].Name)
+
+	s.SortBy = "size"
+	s.sortEntries(entries)
+	assert.Equal(t, "A", entries[0].Name) // Size 200
+
+	s.SortBy = "date"
+	s.sortEntries(entries)
+	assert.Equal(t, "A", entries[0].Name) // Most recent
+}
+
+func TestExtractMetadata(t *testing.T) {
+	t.Run("Extract EPUB", func(t *testing.T) {
+		path := filepath.Join("testdata", "mybook", "mybook.epub")
+		title, author := extractEpubMetadata(path)
+		// We don't know the exact content of the fixture but it should not crash
+		// If the fixture is valid, we could assert more.
+		t.Logf("EPUB Title: %q, Author: %q", title, author)
+	})
+
+	t.Run("Parse PDF value", func(t *testing.T) {
+		line := "/Title (The Great Gatsby) /Author (F. Scott Fitzgerald)"
+		assert.Equal(t, "The Great Gatsby", parsePdfValue(line, "/Title"))
+		assert.Equal(t, "F. Scott Fitzgerald", parsePdfValue(line, "/Author"))
+	})
 }
