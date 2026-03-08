@@ -9,10 +9,9 @@ choice, but if you have a headless server, installing Calibre might not be
 the best option.
 
 That's where calibre2opds comes in. However, if you have a large number of
-books and don't want to create a Calibre library, dir2opds can help you
-set up an OPDS server from a directory with one condition:
+books and don't want to create a Calibre library, dir2opds can help you set up an OPDS server from a directory tree with one simple recommendation for optimal client compatibility:
 
-- A folder should contain either only folders or only files.
+- **Organize by levels:** A folder should ideally contain either only subfolders (for navigation) or only book files (for acquisition).
 
 ## Changelog
 
@@ -75,10 +74,10 @@ It seems that KyBook is so old that it does not trigger the access prompt on iOS
 ```bash
 cd && mkdir dir2opds && cd dir2opds
 
-# get the binary (replace v1.3.2 with the release that matches your system)
-wget https://github.com/dubyte/dir2opds/releases/download/v1.3.2/dir2opds_1.3.2_linux_armv7.tar.gz
+# get the binary (replace v1.4.0 with the release that matches your system)
+wget https://github.com/dubyte/dir2opds/releases/download/v1.4.0/dir2opds_1.4.0_linux_armv7.tar.gz
 
-tar xvf dir2opds_1.3.2_linux_armv7.tar.gz
+tar xvf dir2opds_1.4.0_linux_armv7.tar.gz
 
 sudo touch /etc/systemd/system/dir2opds.service
 
@@ -107,6 +106,20 @@ ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
 [Install]
 WantedBy=multi-user.target
 ```
+
+## Other Installation methods
+
+There are installation scripts and configuration files for FreeBSD, Illumos, and Linux in the [files/](files/) directory.
+
+## Building from source
+
+You can build the project for multiple platforms using the provided `Makefile`:
+
+```bash
+make build-all
+```
+
+This will generate binaries in the `bin/` directory for various operating systems and architectures.
 
 ## Rootless Container with podman
 
