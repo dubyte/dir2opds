@@ -63,6 +63,35 @@ func TestHandler(t *testing.T) {
 
 }
 
+func TestScan(t *testing.T) {
+	s := service.OPDS{TrustedRoot: "testdata", HideCalibreFiles: true, HideDotFiles: true}
+
+	t.Run("Scan root (dir of dirs)", func(t *testing.T) {
+		catalog, err := s.Scan("testdata", "/")
+		require.NoError(t, err)
+		assert.Equal(t, "/", catalog.ID)
+		// testdata has 3 folders: emptyFolder, mybook, new folder
+		assert.Len(t, catalog.Entries, 3)
+	})
+
+	t.Run("Scan mybook (dir of files)", func(t *testing.T) {
+		catalog, err := s.Scan("testdata/mybook", "/mybook")
+		require.NoError(t, err)
+		assert.Equal(t, "/mybook", catalog.ID)
+		// mybook has 6 files but mybook.opf should be ignored
+		assert.Len(t, catalog.Entries, 5)
+		for _, entry := range catalog.Entries {
+			assert.NotContains(t, entry.Name, ".opf")
+		}
+	})
+
+	t.Run("Scan empty folder", func(t *testing.T) {
+		catalog, err := s.Scan("testdata/emptyFolder", "/emptyFolder")
+		require.NoError(t, err)
+		assert.Empty(t, catalog.Entries)
+	})
+}
+
 var feed = `<?xml version="1.0" encoding="UTF-8"?>
   <feed xmlns="http://www.w3.org/2005/Atom">
       <title>Catalog in /</title>
