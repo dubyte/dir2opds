@@ -1,6 +1,6 @@
 # dir2opds - serve books from a directory
 
- dir2opds inspects the given folder and acts as an OPDS 1.1–compliant server.
+dir2opds inspects the given folder and acts as an OPDS 1.1–compliant server.
 
 ## Overview
 
@@ -8,22 +8,155 @@ There are good options for serving books using OPDS. Calibre is a popular
 choice, but if you have a headless server, installing Calibre might not be
 the best option.
 
-That's where calibre2opds comes in. However, if you have a large number of
+That's where dir2opds comes in. If you have a large number of
 books and don't want to create a Calibre library, dir2opds can help you set up an OPDS server from a directory tree with one simple recommendation for optimal client compatibility:
 
 - **Organize by levels:** A folder should ideally contain either only subfolders (for navigation) or only book files (for acquisition).
 
-## Changelog
+## Installation & deployment
 
-- [Changelog](CHANGELOG.md)
+Choose one of the following ways to run dir2opds.
 
-## Installation
+### Go install
 
 ```bash
 go install github.com/dubyte/dir2opds@latest
 ```
 
+### Pre-built binaries
+
+- [Releases](https://github.com/dubyte/dir2opds/releases) — Linux, macOS, Windows, and other platforms.
+
+### Docker
+
+Pull the image:
+
+```bash
+docker pull ghcr.io/dubyte/dir2opds:v1.6.0
+```
+
+Run the container (mount your books directory; the OPDS catalog is served on port 8080):
+
+```bash
+docker run \
+  -d \
+  -m 256MB \
+  --restart always \
+  -p 8080:8080 \
+  -v ./books:/books \
+  --name dir2opds \
+  ghcr.io/dubyte/dir2opds:v1.6.0
+```
+
+Thanks to [rockavoldy](https://hub.docker.com/u/rockavoldy) for the command.
+
+### Podman
+
+You can use the same image as Docker, or build locally.
+
+**Option 1 — use the pre-built image:**
+
+```bash
+podman pull ghcr.io/dubyte/dir2opds:v1.6.0
+```
+
+**Option 2 — build from source:**
+
+```bash
+podman build -t localhost/dir2opds .
+```
+
+Run the container (mount your books directory; OPDS catalog on port 8080):
+
+```bash
+podman run \
+  -d \
+  -m 256MB \
+  --restart always \
+  -p 8080:8080 \
+  -v ./books:/books \
+  --name dir2opds \
+  ghcr.io/dubyte/dir2opds:v1.6.0
+```
+
+For a **rootless** setup (e.g. non-root user, SELinux), use a bind mount with the `Z` option and keep your user namespace:
+
+```bash
+mkdir -p /data/Books
+podman run \
+  -d \
+  -m 256MB \
+  --restart always \
+  --userns=keep-id \
+  -p 8080:8080 \
+  -v /data/Books:/books:Z \
+  --name dir2opds \
+  ghcr.io/dubyte/dir2opds:v1.6.0
+```
+
+Add `-debug` to the image command for request logging, e.g. `... ghcr.io/dubyte/dir2opds:v1.6.0 /dir2opds -debug`.
+
+### Raspberry Pi (binary + systemd)
+
+```bash
+cd && mkdir dir2opds && cd dir2opds
+
+# get the binary (replace v1.6.0 with the release that matches your system)
+wget https://github.com/dubyte/dir2opds/releases/download/v1.6.0/dir2opds_1.6.0_linux_armv7.tar.gz
+
+tar xvf dir2opds_1.6.0_linux_armv7.tar.gz
+
+sudo touch /etc/systemd/system/dir2opds.service
+
+# Paste the content below but remember to pass the full path of your books in -dir
+sudo nano /etc/systemd/system/dir2opds.service
+
+sudo systemctl enable dir2opds.service
+
+sudo systemctl start dir2opds.service
+```
+
+`/etc/systemd/system/dir2opds.service`:
+
+```ini
+[Unit]
+Description=dir2opds
+Documentation=https://github.com/dubyte/dir2opds
+After=network-online.target
+
+[Service]
+User=pi
+Restart=on-failure
+
+ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Other platforms
+
+Installation scripts and configuration files for FreeBSD, Illumos, and Linux are in the [files/](files/) directory.
+
+### Build from source
+
+Build for multiple platforms using the provided `Makefile`:
+
+```bash
+make build-all
+```
+
+Binaries are generated in the `bin/` directory.
+
 ## Usage
+
+Run the server (default: serve `./books` on `http://0.0.0.0:8080`):
+
+```bash
+dir2opds -dir /path/to/books -port 8080
+```
+
+All flags:
 
 ```bash
 Usage of dir2opds:
@@ -53,15 +186,17 @@ Usage of dir2opds:
         Sort entries by: name, date, size. (default "name")
 ```
 
-## Tested on
+## Compatible clients
+
+The following OPDS clients have been tested with dir2opds:
 
 ### Moon+ Reader
 
+Tested on Android.
+
 ### Cantook
 
-Tested on iPhone with the Cantook app.
-
-<https://apps.apple.com/us/app/cantook-by-aldiko/id1476410111>
+Tested on iPhone with the [Cantook app](https://apps.apple.com/us/app/cantook-by-aldiko/id1476410111).
 
 ### KYBook 3
 
@@ -71,90 +206,10 @@ To enable access, go to Settings -> Apps -> KyBook 3 -> Local Network (checked).
 
 It seems that KyBook is so old that it does not trigger the access prompt on iOS, so it has to be configured manually.
 
-## More information
+## Documentation
 
-- <http://opds-spec.org>
-
-## Binary release
-
-- <https://github.com/dubyte/dir2opds/releases>
-
-### Raspberry Pi deployment using binary release
-
-```bash
-cd && mkdir dir2opds && cd dir2opds
-
-# get the binary (replace v1.6.0 with the release that matches your system)
-wget https://github.com/dubyte/dir2opds/releases/download/v1.6.0/dir2opds_1.6.0_linux_armv7.tar.gz
-
-tar xvf dir2opds_1.6.0_linux_armv7.tar.gz
-
-sudo touch /etc/systemd/system/dir2opds.service
-
-# Paste the content below but remember to pass the full path of your books in -dir
-sudo nano /etc/systemd/system/dir2opds.service
-
-sudo systemctl enable dir2opds.service
-
-sudo systemctl start dir2opds.service
-```
-
-/etc/systemd/system/dir2opds.service
-
-```ini
-[Unit]
-Description=dir2opds
-Documentation=https://github.com/dubyte/dir2opds
-After=network-online.target
-
-[Service]
-User=pi
-Restart=on-failure
-
-ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
-
-[Install]
-WantedBy=multi-user.target
-```
-
-## Other Installation methods
-
-There are installation scripts and configuration files for FreeBSD, Illumos, and Linux in the [files/](files/) directory.
-
-## Building from source
-
-You can build the project for multiple platforms using the provided `Makefile`:
-
-```bash
-make build-all
-```
-
-This will generate binaries in the `bin/` directory for various operating systems and architectures.
-
-## Rootless Container with podman
-
-```sh
-# build image
-podman build -t localhost/dir2opds .
-# prepare Books directory
-mkdir /data/Books
-chown -R $USER:$USER /data/Books
-# run built image
-podman run --name dir2opds --rm --userns=keep-id --mount type=bind,src=/data/Books,dst=/books,Z --publish 8008:8080 -i -t localhost/dir2opds /dir2opds -debug
-```
-
-Where:
-
-- `/data/Books` is the path to the directory containing your books.
-
-Test from host with
-
-```sh
-curl http://localhost:8008
-```
-
-## How to contribute
-
+- [Changelog](CHANGELOG.md)
+- [OPDS specification](http://opds-spec.org)
 - [Contributing](CONTRIBUTING.md)
 
 ## Special thanks
