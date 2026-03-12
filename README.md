@@ -1,21 +1,66 @@
-# dir2opds - serve books from a directory
+# dir2opds
 
-dir2opds inspects the given folder and acts as an OPDS 1.1–compliant server.
+[![Go Reference](https://pkg.go.dev/badge/github.com/dubyte/dir2opds.svg)](https://pkg.go.dev/github.com/dubyte/dir2opds)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Releases](https://img.shields.io/github/v/release/dubyte/dir2opds?include_prereleases&label=release)](https://github.com/dubyte/dir2opds/releases)
 
-## Overview
+**Serve an OPDS 1.1–compliant book catalog from a directory.** No database, no Calibre—just point dir2opds at a folder and use any OPDS client to browse and download your books.
 
-There are good options for serving books using OPDS. Calibre is a popular
-choice, but if you have a headless server, installing Calibre might not be
-the best option.
+---
 
-That's where dir2opds comes in. If you have a large number of
-books and don't want to create a Calibre library, dir2opds can help you set up an OPDS server from a directory tree with one simple recommendation for optimal client compatibility:
+## Table of contents
 
-- **Organize by levels:** A folder should ideally contain either only subfolders (for navigation) or only book files (for acquisition).
+- [What is OPDS?](#what-is-opds)
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Compatible clients](#compatible-clients)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
-## Installation & deployment
+---
 
-Choose one of the following ways to run dir2opds.
+## What is OPDS?
+
+[OPDS](http://opds-spec.org) (Open Publication Distribution System) is a standard for cataloging and distributing digital publications. OPDS clients (ebook readers, apps) can discover, browse, and download books from an OPDS server. dir2opds turns a plain directory tree into such a server.
+
+## Features
+
+- **OPDS 1.1 compliant** — Works with standard ebook readers and OPDS clients
+- **No database** — Reads directly from your filesystem; no Calibre or extra setup
+- **Flexible layout** — Organize by folders; optional metadata from EPUB/PDF
+- **Search** — Optional filename search (OpenSearch)
+- **Covers** — Optional `cover.jpg` / `folder.jpg` as catalog covers
+- **Multiple formats** — EPUB, PDF, MOBI, AZW3, and more via configurable MIME types
+- **Lightweight** — Single binary; suitable for headless servers and containers
+
+## Quick start
+
+**Using Docker** (replace `v1.6.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
+
+```bash
+docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.6.0
+```
+
+Then open `http://localhost:8080` in an OPDS client or browser.
+
+**Using Go:**
+
+```bash
+go install github.com/dubyte/dir2opds@latest
+dir2opds -dir /path/to/books -port 8080
+```
+
+**Tip:** For best client compatibility, use folders that contain either only subfolders (navigation) or only book files (acquisition), not mixed.
+
+---
+
+## Installation
+
+Choose one of the following.
 
 ### Go install
 
@@ -25,17 +70,13 @@ go install github.com/dubyte/dir2opds@latest
 
 ### Pre-built binaries
 
-- [Releases](https://github.com/dubyte/dir2opds/releases) — Linux, macOS, Windows, and other platforms.
+Download binaries for Linux, macOS, Windows, and other platforms from the [Releases](https://github.com/dubyte/dir2opds/releases) page.
 
 ### Docker
-
-Pull the image:
 
 ```bash
 docker pull ghcr.io/dubyte/dir2opds:v1.6.0
 ```
-
-Run the container (mount your books directory; the OPDS catalog is served on port 8080):
 
 ```bash
 docker run \
@@ -48,25 +89,23 @@ docker run \
   ghcr.io/dubyte/dir2opds:v1.6.0
 ```
 
-Thanks to [rockavoldy](https://hub.docker.com/u/rockavoldy) for the command.
+Use a specific [release](https://github.com/dubyte/dir2opds/releases) tag instead of `v1.6.0` if needed. Thanks to [rockavoldy](https://hub.docker.com/u/rockavoldy) for the run example.
 
 ### Podman
 
-You can use the same image as Docker, or build locally.
-
-**Option 1 — use the pre-built image:**
+**Pre-built image:**
 
 ```bash
 podman pull ghcr.io/dubyte/dir2opds:v1.6.0
 ```
 
-**Option 2 — build from source:**
+**Build from source:**
 
 ```bash
 podman build -t localhost/dir2opds .
 ```
 
-Run the container (mount your books directory; OPDS catalog on port 8080):
+**Run** (OPDS on port 8080):
 
 ```bash
 podman run \
@@ -79,7 +118,7 @@ podman run \
   ghcr.io/dubyte/dir2opds:v1.6.0
 ```
 
-For a **rootless** setup (e.g. non-root user, SELinux), use a bind mount with the `Z` option and keep your user namespace:
+**Rootless** (e.g. non-root user, SELinux): use a bind mount with the `Z` option and keep the user namespace:
 
 ```bash
 mkdir -p /data/Books
@@ -94,26 +133,20 @@ podman run \
   ghcr.io/dubyte/dir2opds:v1.6.0
 ```
 
-Add `-debug` to the image command for request logging, e.g. `... ghcr.io/dubyte/dir2opds:v1.6.0 /dir2opds -debug`.
+Add `-debug` for request logging, e.g. `... ghcr.io/dubyte/dir2opds:v1.6.0 /dir2opds -debug`.
 
 ### Raspberry Pi (binary + systemd)
 
 ```bash
 cd && mkdir dir2opds && cd dir2opds
-
-# get the binary (replace v1.6.0 with the release that matches your system)
+# Replace v1.6.0 and the asset name with the release that matches your system
 wget https://github.com/dubyte/dir2opds/releases/download/v1.6.0/dir2opds_1.6.0_linux_armv7.tar.gz
-
 tar xvf dir2opds_1.6.0_linux_armv7.tar.gz
 
-sudo touch /etc/systemd/system/dir2opds.service
-
-# Paste the content below but remember to pass the full path of your books in -dir
 sudo nano /etc/systemd/system/dir2opds.service
+# Paste the unit below, then set the full path of your books folder in -dir
 
-sudo systemctl enable dir2opds.service
-
-sudo systemctl start dir2opds.service
+sudo systemctl enable --now dir2opds.service
 ```
 
 `/etc/systemd/system/dir2opds.service`:
@@ -127,8 +160,7 @@ After=network-online.target
 [Service]
 User=pi
 Restart=on-failure
-
-ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL PATH OF BOOKS FOLDER> -port 8080
+ExecStart=/home/pi/dir2opds/dir2opds -dir <FULL_PATH_TO_BOOKS> -port 8080
 
 [Install]
 WantedBy=multi-user.target
@@ -136,75 +168,58 @@ WantedBy=multi-user.target
 
 ### Other platforms
 
-Installation scripts and configuration files for FreeBSD, Illumos, and Linux are in the [files/](files/) directory.
+Installation scripts and configs for FreeBSD, Illumos, and Linux are in the [files/](files/) directory.
 
 ### Build from source
 
-Build for multiple platforms using the provided `Makefile`:
+Requires [Go 1.21+](https://go.dev/doc/install). Build for multiple platforms:
 
 ```bash
 make build-all
 ```
 
-Binaries are generated in the `bin/` directory.
+Binaries are written to `bin/`.
+
+---
 
 ## Usage
 
-Run the server (default: serve `./books` on `http://0.0.0.0:8080`):
+Default: serve `./books` on `http://0.0.0.0:8080`.
 
 ```bash
 dir2opds -dir /path/to/books -port 8080
 ```
 
-All flags:
+### Options
 
-```bash
-Usage of dir2opds:
-  -calibre
-        Hide files stored by calibre.
-  -debug
-        If it is set it will log the requests.
-  -dir string
-        A directory with books. (default "./books")
-  -extract-metadata
-        Extract metadata (title, author) from EPUB and PDF files.
-  -hide-dot-files
-        Hide files that start with a dot.
-  -host string
-        The server will listen on this host. (default "0.0.0.0")
-  -mime-map string
-        Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')
-  -no-cache
-        Add response headers to prevent the client from caching.
-  -port string
-        The server will listen on this port. (default "8080")
-  -search
-        Enable basic filename search.
-  -show-covers
-        Show cover.jpg or folder.jpg as catalog cover.
-  -sort string
-        Sort entries by: name, date, size. (default "name")
-```
+| Flag | Description |
+|------|-------------|
+| `-calibre` | Hide files stored by Calibre |
+| `-debug` | Log requests |
+| `-dir` | Directory with books (default: `./books`) |
+| `-extract-metadata` | Extract title/author from EPUB and PDF |
+| `-hide-dot-files` | Hide files whose names start with a dot |
+| `-host` | Listen address (default: `0.0.0.0`) |
+| `-mime-map` | Custom MIME types, e.g. `.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook` |
+| `-no-cache` | Add response headers to disable client caching |
+| `-port` | Listen port (default: `8080`) |
+| `-search` | Enable basic filename search |
+| `-show-covers` | Use `cover.jpg` or `folder.jpg` as catalog covers |
+| `-sort` | Sort entries: `name`, `date`, or `size` (default: `name`) |
+
+---
 
 ## Compatible clients
 
-The following OPDS clients have been tested with dir2opds:
+These OPDS clients have been tested with dir2opds:
 
-### Moon+ Reader
+| Client | Platform | Notes |
+|--------|----------|--------|
+| [Moon+ Reader](https://play.google.com/store/apps/details?id=com.flyersoft.moonreader) | Android | Tested |
+| [Cantook](https://apps.apple.com/us/app/cantook-by-aldiko/id1476410111) | iPhone | Tested |
+| [KYBook 3](https://apps.apple.com/us/app/kybook-3-ebook-reader/id1348198785) | iOS | Enable **Settings → Apps → KyBook 3 → Local Network**. Older app may not show the prompt; enable manually. |
 
-Tested on Android.
-
-### Cantook
-
-Tested on iPhone with the [Cantook app](https://apps.apple.com/us/app/cantook-by-aldiko/id1476410111).
-
-### KYBook 3
-
-It works with [KyBook 3 Ebook Reader](https://apps.apple.com/us/app/kybook-3-ebook-reader/id1348198785) if access to Local Network is enabled in settings.  
-
-To enable access, go to Settings -> Apps -> KyBook 3 -> Local Network (checked).
-
-It seems that KyBook is so old that it does not trigger the access prompt on iOS, so it has to be configured manually.
+---
 
 ## Documentation
 
@@ -212,7 +227,21 @@ It seems that KyBook is so old that it does not trigger the access prompt on iOS
 - [OPDS specification](http://opds-spec.org)
 - [Contributing](CONTRIBUTING.md)
 
-## Special thanks
+---
 
-- @clach04: for testing and reporting missing content type for comics.
-- @masked-owl: for reporting the security issue about HTTP traversal.
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for license agreements, development setup, and pull request process.
+
+---
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0**. See [LICENSE](LICENSE) for the full text.
+
+---
+
+## Acknowledgments
+
+- **@clach04** — Testing and reporting missing content type for comics
+- **@masked-owl** — Reporting the HTTP path traversal security issue
