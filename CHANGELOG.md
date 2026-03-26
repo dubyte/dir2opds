@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GEMINI.md` with project overview and development guidelines.
 - Support for absolute URLs in OpenSearch and feed generation.
 - Tests for Base URL functionality.
+- Migrated to `log/slog` for structured logging.
+- Added `-log-format` flag (options: `json`, `text`) to configure log output.
+- Included `base_url` in default log attributes for better traceability.
+
+### Changed
+
+- Default log format is now JSON.
+- Cleaned up logs to avoid exposing internal filesystem paths (`fPath`).
+- Updated `errorHandler` to use structured logging.
 
 ## [1.6.0] - 2026-03-08
 

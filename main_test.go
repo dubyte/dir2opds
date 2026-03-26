@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,15 +34,12 @@ func TestStartValues(t *testing.T) {
 }
 
 func TestErrorHandler(t *testing.T) {
-	// pre-setup
-	stdOutput := log.Writer()
-	defer func() {
-		log.SetOutput(stdOutput)
-	}()
-
 	// setup
 	var buf bytes.Buffer
-	log.SetOutput(&buf) // to record what is logged
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	oldLogger := slog.Default()
+	slog.SetDefault(logger)
+	defer slog.SetDefault(oldLogger)
 
 	f := func(http.ResponseWriter, *http.Request) error {
 		return errors.New("scary error")
@@ -55,7 +52,10 @@ func TestErrorHandler(t *testing.T) {
 	h(res, req)
 
 	// assert
-	assert.Contains(t, buf.String(), `handling "/": scary error`)
+	assert.Contains(t, buf.String(), `"level":"ERROR"`)
+	assert.Contains(t, buf.String(), `"msg":"request error"`)
+	assert.Contains(t, buf.String(), `"uri":"/"`)
+	assert.Contains(t, buf.String(), `"error":"scary error"`)
 }
 
 func Test_absoluteCanonicalPath(t *testing.T) {

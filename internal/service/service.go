@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
-	"log"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -115,7 +115,7 @@ func (s OPDS) Scan(fPath string, urlPath string) (*Catalog, error) {
 		entryPath := filepath.Join(fPath, entry.Name())
 		info, err := entry.Info()
 		if err != nil {
-			log.Printf("error getting info for %s: %s", entryPath, err)
+			slog.Error("error getting info for entry", "error", err)
 			continue
 		}
 
@@ -283,7 +283,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	var err error
 	urlPath, err := url.PathUnescape(req.URL.Path)
 	if err != nil {
-		log.Printf("error while serving '%s': %s", req.URL.Path, err)
+		slog.Error("error unescaping path", "urlPath", req.URL.Path, "error", err)
 		return err
 	}
 
@@ -292,20 +292,18 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	// verifyPath avoid the http transversal by checking the path is under DirRoot
 	_, err = verifyPath(fPath, s.TrustedRoot)
 	if err != nil {
-		log.Printf("fPath %q err: %s", fPath, err)
+		slog.Error("verify path error", "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
 
-	log.Printf("urlPath:'%s'", urlPath)
+	slog.Debug("request", "urlPath", urlPath)
 
 	if _, err := os.Stat(fPath); err != nil {
-		log.Printf("fPath err: %s", err)
+		slog.Error("file system stat error", "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
-
-	log.Printf("fPath:'%s'", fPath)
 
 	pathType := getPathType(fPath)
 
@@ -322,7 +320,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 
 	catalog, err := s.Scan(fPath, urlPath)
 	if err != nil {
-		log.Printf("error while scanning '%s': %s", fPath, err)
+		slog.Error("error scanning path", "error", err)
 		return err
 	}
 
@@ -339,7 +337,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 	}
 	if err != nil {
-		log.Printf("error while serving '%s': %s", fPath, err)
+		slog.Error("error marshaling feed", "error", err)
 		return err
 	}
 
@@ -547,7 +545,7 @@ func (s OPDS) getType(name string, pathType int) string {
 func getPathType(dirpath string) int {
 	fi, err := os.Stat(dirpath)
 	if err != nil {
-		log.Printf("getPathType os.Stat err: %s", err)
+		slog.Error("getPathType os.Stat error", "error", err)
 		return pathTypeFile
 	}
 
@@ -557,7 +555,7 @@ func getPathType(dirpath string) int {
 
 	dirEntries, err := os.ReadDir(dirpath)
 	if err != nil {
-		log.Printf("getPathType: readDir err: %s", err)
+		slog.Error("getPathType: readDir error", "error", err)
 	}
 
 	for _, entry := range dirEntries {
@@ -584,7 +582,7 @@ func verifyPath(path, trustedRoot string) (string, error) {
 	// get the canonical path
 	r, err := filepath.EvalSymlinks(c)
 	if err != nil {
-		log.Printf("verifyPath: %s", err)
+		slog.Error("verifyPath error", "error", err)
 		return c, errors.New("unsafe or invalid path specified")
 	}
 

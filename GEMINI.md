@@ -9,6 +9,7 @@
 - **Metadata Extraction**: Optionally extracts title and author from EPUB and PDF files.
 - **Flexible Sorting**: Supports sorting by name, modification date, or file size.
 - **Search**: Built-in OpenSearch support for filename-based search.
+- **Structured Logging**: Uses `log/slog` for structured logging with support for JSON and text formats.
 - **Customizable**: Support for custom MIME types and hiding specific files (e.g., Calibre-generated files, dotfiles).
 - **Secure**: Implements path traversal protection.
 
@@ -40,6 +41,7 @@
 ### Coding Style:
 - **Fluent Builders**: The project uses `github.com/lann/builder` to create immutable builders for OPDS/Atom XML elements (see `opds/` directory).
 - **Service Pattern**: Core logic is encapsulated in the `service.OPDS` struct, which implements the HTTP handlers.
+- **Structured Logging**: All logging is done using `log/slog`. Prefer structured attributes over formatted strings.
 - **Standard Formatting**: Adhere to `go fmt` and `go vet` standards.
 
 ### Testing:
