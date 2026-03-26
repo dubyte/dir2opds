@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-03-26
+
+### Added
+
+- `-url` flag to specify a base URL for absolute links in the feed (useful for reverse proxies).
+- `GEMINI.md` with project overview and development guidelines.
+- Support for absolute URLs in OpenSearch and feed generation.
+- Tests for Base URL functionality.
+
 ## [1.6.0] - 2026-03-08
 
 ### Added

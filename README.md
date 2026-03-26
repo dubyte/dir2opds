@@ -39,10 +39,10 @@
 
 ## Quick start
 
-**Using Docker** (replace `v1.6.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
+Using Docker (replace `v1.7.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
 
 ```bash
-docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.6.0
+docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.7.0
 ```
 
 Then open `http://localhost:8080` in an OPDS client or browser.
@@ -75,7 +75,7 @@ Download binaries for Linux, macOS, Windows, and other platforms from the [Relea
 ### Docker
 
 ```bash
-docker pull ghcr.io/dubyte/dir2opds:v1.6.0
+docker pull ghcr.io/dubyte/dir2opds:v1.7.0
 ```
 
 ```bash
@@ -86,17 +86,17 @@ docker run \
   -p 8080:8080 \
   -v ./books:/books \
   --name dir2opds \
-  ghcr.io/dubyte/dir2opds:v1.6.0
+  ghcr.io/dubyte/dir2opds:v1.7.0
 ```
 
-Use a specific [release](https://github.com/dubyte/dir2opds/releases) tag instead of `v1.6.0` if needed. Thanks to [rockavoldy](https://hub.docker.com/u/rockavoldy) for the run example.
+Use a specific [release](https://github.com/dubyte/dir2opds/releases) tag instead of `v1.7.0` if needed. Thanks to [rockavoldy](https://hub.docker.com/u/rockavoldy) for the run example.
 
 ### Podman
 
 **Pre-built image:**
 
 ```bash
-podman pull ghcr.io/dubyte/dir2opds:v1.6.0
+podman pull ghcr.io/dubyte/dir2opds:v1.7.0
 ```
 
 **Build from source:**
@@ -115,7 +115,7 @@ podman run \
   -p 8080:8080 \
   -v ./books:/books \
   --name dir2opds \
-  ghcr.io/dubyte/dir2opds:v1.6.0
+  ghcr.io/dubyte/dir2opds:v1.7.0
 ```
 
 **Rootless** (e.g. non-root user, SELinux): use a bind mount with the `Z` option and keep the user namespace:
@@ -130,18 +130,18 @@ podman run \
   -p 8080:8080 \
   -v /data/Books:/books:Z \
   --name dir2opds \
-  ghcr.io/dubyte/dir2opds:v1.6.0
+  ghcr.io/dubyte/dir2opds:v1.7.0
 ```
 
-Add `-debug` for request logging, e.g. `... ghcr.io/dubyte/dir2opds:v1.6.0 /dir2opds -debug`.
+Add `-debug` for request logging, e.g. `... ghcr.io/dubyte/dir2opds:v1.7.0 /dir2opds -debug`.
 
 ### Raspberry Pi (binary + systemd)
 
 ```bash
 cd && mkdir dir2opds && cd dir2opds
-# Replace v1.6.0 and the asset name with the release that matches your system
-wget https://github.com/dubyte/dir2opds/releases/download/v1.6.0/dir2opds_1.6.0_linux_armv7.tar.gz
-tar xvf dir2opds_1.6.0_linux_armv7.tar.gz
+# Replace v1.7.0 and the asset name with the release that matches your system
+wget https://github.com/dubyte/dir2opds/releases/download/v1.7.0/dir2opds_1.7.0_linux_armv7.tar.gz
+tar xvf dir2opds_1.7.0_linux_armv7.tar.gz
 
 sudo nano /etc/systemd/system/dir2opds.service
 # Paste the unit below, then set the full path of your books folder in -dir
@@ -206,6 +206,7 @@ dir2opds -dir /path/to/books -port 8080
 | `-search` | Enable basic filename search |
 | `-show-covers` | Use `cover.jpg` or `folder.jpg` as catalog covers |
 | `-sort` | Sort entries: `name`, `date`, or `size` (default: `name`) |
+| `-url` | The base URL used for absolute links in the feed (e.g., `https://opds.example.com`) |
 
 ---
 
