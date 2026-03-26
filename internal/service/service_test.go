@@ -97,6 +97,54 @@ func TestScan(t *testing.T) {
 	})
 }
 
+func TestBaseURL(t *testing.T) {
+	s := service.OPDS{
+		TrustedRoot: "testdata",
+		BaseURL:     "https://opds.example.com",
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	err := s.Handler(w, req)
+	require.NoError(t, err)
+
+	resp := w.Result()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(body), `href="https://opds.example.com/"`)
+	assert.Contains(t, string(body), `href="https://opds.example.com/mybook"`)
+
+	t.Run("Search with BaseURL", func(t *testing.T) {
+		s.EnableSearch = true
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/search?q=mybook", nil)
+
+		err := s.SearchHandler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(body), `href="https://opds.example.com/mybook/mybook.epub"`)
+	})
+
+	t.Run("OpenSearch with BaseURL", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/opensearch.xml", nil)
+
+		s.OpenSearchHandler(w, req)
+
+		resp := w.Result()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(body), `template="https://opds.example.com/search?q={searchTerms}"`)
+	})
+}
+
 var feed = `<?xml version="1.0" encoding="UTF-8"?>
   <feed xmlns="http://www.w3.org/2005/Atom">
       <title>Catalog in /</title>

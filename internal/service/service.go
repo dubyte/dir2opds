@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -56,6 +57,7 @@ type OPDS struct {
 	MimeMap          map[string]string
 	EnableSearch     bool
 	ExtractMetadata  bool
+	BaseURL          string
 }
 
 type Catalog struct {
@@ -402,16 +404,24 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 
 // OpenSearchHandler serves the OpenSearch description document
 func (s OPDS) OpenSearchHandler(w http.ResponseWriter, req *http.Request) {
-	xml := `<?xml version="1.0" encoding="UTF-8"?>
+	searchURL := s.joinURL("/search?q={searchTerms}")
+	xmlStr := `<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
   <ShortName>dir2opds</ShortName>
   <Description>Search books in dir2opds</Description>
   <InputEncoding>UTF-8</InputEncoding>
   <OutputEncoding>UTF-8</OutputEncoding>
-  <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition" template="/search?q={searchTerms}"/>
+  <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition" template="` + searchURL + `"/>
 </OpenSearchDescription>`
 	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
-	w.Write([]byte(xml))
+	w.Write([]byte(xmlStr))
+}
+
+func (s OPDS) joinURL(p string) string {
+	if s.BaseURL == "" {
+		return p
+	}
+	return strings.TrimSuffix(s.BaseURL, "/") + "/" + strings.TrimPrefix(p, "/")
 }
 
 func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
@@ -419,26 +429,27 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		ID(catalog.ID).
 		Title(catalog.Title).
 		Updated(TimeNow()).
-		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
+		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build())
 
 	// Add search link if enabled
 	if s.EnableSearch {
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("search").
-			Href("/opensearch.xml").
+			Href(s.joinURL("/opensearch.xml")).
 			Type("application/opensearchdescription+xml").
 			Build())
 	}
 
 	if catalog.Cover != "" {
+		coverHref := s.joinURL((&url.URL{Path: catalog.Cover}).String())
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("http://opds-spec.org/image").
-			Href(catalog.Cover).
+			Href(coverHref).
 			Type(mime.TypeByExtension(filepath.Ext(catalog.Cover))).
 			Build())
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("http://opds-spec.org/image/thumbnail").
-			Href(catalog.Cover).
+			Href(coverHref).
 			Type(mime.TypeByExtension(filepath.Ext(catalog.Cover))).
 			Build())
 	}
@@ -448,13 +459,23 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		if entry.Title != "" {
 			title = entry.Title
 		}
+
+		var entryPath string
+		if strings.HasPrefix(catalog.ID, "search:") {
+			entryPath = "/" + entry.Name
+		} else {
+			entryPath = path.Join(req.URL.Path, entry.Name)
+		}
+
+		href := s.joinURL((&url.URL{Path: entryPath}).String())
+
 		entryBuilder := opds.EntryBuilder.
 			ID(req.URL.Path + entry.Name).
 			Title(title).
 			AddLink(opds.LinkBuilder.
 				Rel(getRel(entry.Name, entry.Type)).
 				Title(entry.Name).
-				Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(entry.Name))).
+				Href(href).
 				Type(s.getType(entry.Name, entry.Type)).
 				Build())
 
