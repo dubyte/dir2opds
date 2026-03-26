@@ -9,11 +9,12 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
-	"log"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -56,6 +57,7 @@ type OPDS struct {
 	MimeMap          map[string]string
 	EnableSearch     bool
 	ExtractMetadata  bool
+	BaseURL          string
 }
 
 type Catalog struct {
@@ -113,7 +115,7 @@ func (s OPDS) Scan(fPath string, urlPath string) (*Catalog, error) {
 		entryPath := filepath.Join(fPath, entry.Name())
 		info, err := entry.Info()
 		if err != nil {
-			log.Printf("error getting info for %s: %s", entryPath, err)
+			slog.Error("error getting info for entry", "error", err)
 			continue
 		}
 
@@ -281,7 +283,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	var err error
 	urlPath, err := url.PathUnescape(req.URL.Path)
 	if err != nil {
-		log.Printf("error while serving '%s': %s", req.URL.Path, err)
+		slog.Error("error unescaping path", "urlPath", req.URL.Path, "error", err)
 		return err
 	}
 
@@ -290,20 +292,18 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	// verifyPath avoid the http transversal by checking the path is under DirRoot
 	_, err = verifyPath(fPath, s.TrustedRoot)
 	if err != nil {
-		log.Printf("fPath %q err: %s", fPath, err)
+		slog.Error("verify path error", "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
 
-	log.Printf("urlPath:'%s'", urlPath)
+	slog.Debug("request", "urlPath", urlPath)
 
 	if _, err := os.Stat(fPath); err != nil {
-		log.Printf("fPath err: %s", err)
+		slog.Error("file system stat error", "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
-
-	log.Printf("fPath:'%s'", fPath)
 
 	pathType := getPathType(fPath)
 
@@ -320,7 +320,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 
 	catalog, err := s.Scan(fPath, urlPath)
 	if err != nil {
-		log.Printf("error while scanning '%s': %s", fPath, err)
+		slog.Error("error scanning path", "error", err)
 		return err
 	}
 
@@ -337,7 +337,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 	}
 	if err != nil {
-		log.Printf("error while serving '%s': %s", fPath, err)
+		slog.Error("error marshaling feed", "error", err)
 		return err
 	}
 
@@ -402,16 +402,24 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 
 // OpenSearchHandler serves the OpenSearch description document
 func (s OPDS) OpenSearchHandler(w http.ResponseWriter, req *http.Request) {
-	xml := `<?xml version="1.0" encoding="UTF-8"?>
+	searchURL := s.joinURL("/search?q={searchTerms}")
+	xmlStr := `<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
   <ShortName>dir2opds</ShortName>
   <Description>Search books in dir2opds</Description>
   <InputEncoding>UTF-8</InputEncoding>
   <OutputEncoding>UTF-8</OutputEncoding>
-  <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition" template="/search?q={searchTerms}"/>
+  <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition" template="` + searchURL + `"/>
 </OpenSearchDescription>`
 	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
-	w.Write([]byte(xml))
+	w.Write([]byte(xmlStr))
+}
+
+func (s OPDS) joinURL(p string) string {
+	if s.BaseURL == "" {
+		return p
+	}
+	return strings.TrimSuffix(s.BaseURL, "/") + "/" + strings.TrimPrefix(p, "/")
 }
 
 func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
@@ -419,26 +427,27 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		ID(catalog.ID).
 		Title(catalog.Title).
 		Updated(TimeNow()).
-		AddLink(opds.LinkBuilder.Rel("start").Href("/").Type(navigationType).Build())
+		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build())
 
 	// Add search link if enabled
 	if s.EnableSearch {
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("search").
-			Href("/opensearch.xml").
+			Href(s.joinURL("/opensearch.xml")).
 			Type("application/opensearchdescription+xml").
 			Build())
 	}
 
 	if catalog.Cover != "" {
+		coverHref := s.joinURL((&url.URL{Path: catalog.Cover}).String())
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("http://opds-spec.org/image").
-			Href(catalog.Cover).
+			Href(coverHref).
 			Type(mime.TypeByExtension(filepath.Ext(catalog.Cover))).
 			Build())
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("http://opds-spec.org/image/thumbnail").
-			Href(catalog.Cover).
+			Href(coverHref).
 			Type(mime.TypeByExtension(filepath.Ext(catalog.Cover))).
 			Build())
 	}
@@ -448,13 +457,23 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		if entry.Title != "" {
 			title = entry.Title
 		}
+
+		var entryPath string
+		if strings.HasPrefix(catalog.ID, "search:") {
+			entryPath = "/" + entry.Name
+		} else {
+			entryPath = path.Join(req.URL.Path, entry.Name)
+		}
+
+		href := s.joinURL((&url.URL{Path: entryPath}).String())
+
 		entryBuilder := opds.EntryBuilder.
 			ID(req.URL.Path + entry.Name).
 			Title(title).
 			AddLink(opds.LinkBuilder.
 				Rel(getRel(entry.Name, entry.Type)).
 				Title(entry.Name).
-				Href(filepath.Join(req.URL.RequestURI(), url.PathEscape(entry.Name))).
+				Href(href).
 				Type(s.getType(entry.Name, entry.Type)).
 				Build())
 
@@ -526,7 +545,7 @@ func (s OPDS) getType(name string, pathType int) string {
 func getPathType(dirpath string) int {
 	fi, err := os.Stat(dirpath)
 	if err != nil {
-		log.Printf("getPathType os.Stat err: %s", err)
+		slog.Error("getPathType os.Stat error", "error", err)
 		return pathTypeFile
 	}
 
@@ -536,7 +555,7 @@ func getPathType(dirpath string) int {
 
 	dirEntries, err := os.ReadDir(dirpath)
 	if err != nil {
-		log.Printf("getPathType: readDir err: %s", err)
+		slog.Error("getPathType: readDir error", "error", err)
 	}
 
 	for _, entry := range dirEntries {
@@ -563,7 +582,7 @@ func verifyPath(path, trustedRoot string) (string, error) {
 	// get the canonical path
 	r, err := filepath.EvalSymlinks(c)
 	if err != nil {
-		log.Printf("verifyPath: %s", err)
+		slog.Error("verifyPath error", "error", err)
 		return c, errors.New("unsafe or invalid path specified")
 	}
 

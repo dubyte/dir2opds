@@ -20,8 +20,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -43,15 +42,33 @@ var (
 	mimeMapStr   = flag.String("mime-map", "", "Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')")
 	searchEnable = flag.Bool("search", false, "Enable basic filename search.")
 	extractMeta  = flag.Bool("extract-metadata", false, "Extract metadata (title, author) from EPUB and PDF files.")
+	baseURL      = flag.String("url", "", "The base URL used for absolute links in the feed (e.g., https://opds.example.com).")
+	logFormat    = flag.String("log-format", "json", "Log format: json, text.")
 )
 
 func main() {
 
 	flag.Parse()
 
-	if !*debug {
-		log.SetOutput(io.Discard)
+	var level slog.Level
+	if *debug {
+		level = slog.LevelDebug
+	} else {
+		level = slog.LevelError
 	}
+
+	var handler slog.Handler
+	opts := &slog.HandlerOptions{Level: level}
+
+	switch strings.ToLower(*logFormat) {
+	case "text":
+		handler = slog.NewTextHandler(os.Stderr, opts)
+	default:
+		handler = slog.NewJSONHandler(os.Stderr, opts)
+	}
+
+	logger := slog.New(handler).With("base_url", *baseURL)
+	slog.SetDefault(logger)
 
 	// Use the absolute canonical path of the dir parm as the trustedRoot.
 	// Helps avoid http path traversal. https://github.com/dubyte/dir2opds/issues/17
@@ -61,7 +78,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Printf("%q will be used as your trusted root", absolutePath)
+	slog.Info("trusted root", "path", absolutePath)
 
 	fmt.Println(startValues())
 
@@ -75,6 +92,7 @@ func main() {
 		MimeMap:          parseMimeMap(*mimeMapStr),
 		EnableSearch:     *searchEnable,
 		ExtractMetadata:  *extractMeta,
+		BaseURL:          *baseURL,
 	}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
@@ -83,7 +101,10 @@ func main() {
 		http.HandleFunc("/opensearch.xml", s.OpenSearchHandler)
 	}
 
-	log.Fatal(http.ListenAndServe(*host+":"+*port, nil))
+	if err := http.ListenAndServe(*host+":"+*port, nil); err != nil {
+		slog.Error("server failed", "error", err)
+		os.Exit(1)
+	}
 }
 
 func parseMimeMap(s string) map[string]string {
@@ -111,7 +132,7 @@ func errorHandler(f func(http.ResponseWriter, *http.Request) error) http.Handler
 		err := f(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			log.Printf("handling %q: %v", r.RequestURI, err)
+			slog.Error("request error", "uri", r.RequestURI, "error", err)
 		}
 	}
 }
