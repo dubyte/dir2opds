@@ -36,6 +36,9 @@
 - **Flexible layout** — Organize by folders; optional metadata from EPUB/PDF
 - **Search** — Optional filename search (OpenSearch)
 - **Covers** — Optional `cover.jpg` / `folder.jpg` as catalog covers
+- **Pagination** — Configurable page size for large catalogs
+- **Caching** — ETag/Last-Modified for conditional requests, gzip compression
+- **Health endpoint** — `/health` endpoint for monitoring and load balancers
 - **Structured Logging** — Uses `log/slog` for JSON (default) or text logging
 - **Multiple formats** — EPUB, PDF, MOBI, AZW3, and more via configurable MIME types
 - **Lightweight** — Single binary; suitable for headless servers and containers

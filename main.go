@@ -101,6 +101,7 @@ func main() {
 	}
 
 	http.HandleFunc("/", errorHandler(s.Handler))
+	http.HandleFunc("/health", service.HealthHandler)
 	if *searchEnable {
 		http.HandleFunc("/search", errorHandler(s.SearchHandler))
 		http.HandleFunc("/opensearch.xml", s.OpenSearchHandler)
