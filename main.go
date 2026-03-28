@@ -43,7 +43,7 @@ var (
 	showCovers   = flag.Bool("show-covers", false, "Show cover.jpg or folder.jpg as catalog cover.")
 	mimeMapStr   = flag.String("mime-map", "", "Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')")
 	searchEnable = flag.Bool("search", false, "Enable basic filename search.")
-	extractMeta  = flag.Bool("extract-metadata", false, "Extract metadata (title, author) from EPUB and PDF files.")
+	extractMeta  = flag.Bool("extract-metadata", false, "Extract metadata (title, author, cover) from EPUB and PDF files.")
 	baseURL      = flag.String("url", "", "The base URL used for absolute links in the feed (e.g., https://opds.example.com).")
 	logFormat    = flag.String("log-format", "json", "Log format: json, text.")
 	pageSize     = flag.Int("page-size", 50, "Number of entries per page (0 for default, max 200).")
@@ -105,6 +105,9 @@ func main() {
 	if *searchEnable {
 		http.HandleFunc("/search", errorHandler(s.SearchHandler))
 		http.HandleFunc("/opensearch.xml", s.OpenSearchHandler)
+	}
+	if *extractMeta {
+		http.HandleFunc("/cover", errorHandler(s.CoverHandler))
 	}
 
 	var httpHandler http.Handler = http.DefaultServeMux

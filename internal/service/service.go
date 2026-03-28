@@ -11,6 +11,8 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"mime"
 	"net/http"
@@ -83,12 +85,13 @@ type Catalog struct {
 }
 
 type CatalogEntry struct {
-	Name    string
-	Type    int
-	ModTime time.Time
-	Size    int64
-	Title   string
-	Author  string
+	Name      string
+	Type      int
+	ModTime   time.Time
+	Size      int64
+	Title     string
+	Author    string
+	CoverPath string
 }
 
 type IsDirer interface {
@@ -181,12 +184,15 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 
 		if s.ExtractMetadata && !entry.IsDir() {
 			idx := len(catalog.Entries) - 1
-			title, author := extractMetadata(entryPath)
+			title, author, coverPath := extractMetadata(entryPath)
 			if title != "" {
 				catalog.Entries[idx].Title = title
 			}
 			if author != "" {
 				catalog.Entries[idx].Author = author
+			}
+			if coverPath != "" {
+				catalog.Entries[idx].CoverPath = coverPath
 			}
 		}
 	}
@@ -216,21 +222,22 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 	return catalog, nil
 }
 
-func extractMetadata(path string) (string, string) {
+func extractMetadata(path string) (string, string, string) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".epub":
 		return extractEpubMetadata(path)
 	case ".pdf":
-		return extractPdfMetadata(path)
+		title, author := extractPdfMetadata(path)
+		return title, author, ""
 	}
-	return "", ""
+	return "", "", ""
 }
 
-func extractEpubMetadata(path string) (string, string) {
+func extractEpubMetadata(path string) (string, string, string) {
 	r, err := zip.OpenReader(path)
 	if err != nil {
-		return "", ""
+		return "", "", ""
 	}
 	defer r.Close()
 
@@ -243,35 +250,43 @@ func extractEpubMetadata(path string) (string, string) {
 	}
 
 	if opfPath == "" {
-		return "", ""
+		return "", "", ""
 	}
 
 	f, err := r.Open(opfPath)
 	if err != nil {
-		return "", ""
+		return "", "", ""
 	}
 	defer f.Close()
+
+	opfContent, err := io.ReadAll(f)
+	if err != nil {
+		return "", "", ""
+	}
 
 	var opf struct {
 		Metadata struct {
 			Title   string `xml:"title"`
 			Creator string `xml:"creator"`
 		} `xml:"metadata"`
+		Manifest struct {
+			Items []struct {
+				ID        string `xml:"id,attr"`
+				Href      string `xml:"href,attr"`
+				MediaType string `xml:"media-type,attr"`
+			} `xml:"item"`
+		} `xml:"manifest"`
 	}
 
-	decoder := xml.NewDecoder(f)
+	decoder := xml.NewDecoder(bytes.NewReader(opfContent))
 	if err := decoder.Decode(&opf); err != nil {
-		return "", ""
+		return "", "", ""
 	}
 
 	// If standard unmarshal fails to get values due to namespaces
 	if opf.Metadata.Title == "" || opf.Metadata.Creator == "" {
-		// Re-open for a more brute-force search if needed, but let's try with Case Insensitive or without namespaces
-		// A common trick is to use a decoder that ignores namespaces
-		f.Close()
-		f, _ = r.Open(opfPath)
-		decoder = xml.NewDecoder(f)
-		decoder.DefaultSpace = "http://purl.org/dc/elements/1.1/" // Try DC namespace
+		decoder = xml.NewDecoder(bytes.NewReader(opfContent))
+		decoder.DefaultSpace = "http://purl.org/dc/elements/1.1/"
 		var opf2 struct {
 			Metadata struct {
 				Title   string `xml:"title"`
@@ -287,7 +302,65 @@ func extractEpubMetadata(path string) (string, string) {
 		}
 	}
 
-	return opf.Metadata.Title, opf.Metadata.Creator
+	// Find cover image in manifest
+	coverPath := findEpubCover(r, opf.Manifest.Items, opfPath)
+
+	return opf.Metadata.Title, opf.Metadata.Creator, coverPath
+}
+
+func findEpubCover(r *zip.ReadCloser, items []struct {
+	ID        string `xml:"id,attr"`
+	Href      string `xml:"href,attr"`
+	MediaType string `xml:"media-type,attr"`
+}, opfPath string) string {
+	// Common cover image IDs and properties
+	coverIDs := []string{"cover", "cover-image", "coverimage", "coverimage"}
+	imageExtensions := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
+
+	// Get the base directory of the OPF file
+	opfDir := filepath.Dir(opfPath)
+
+	// First, look for items with cover-related IDs
+	for _, item := range items {
+		itemID := strings.ToLower(item.ID)
+		for _, coverID := range coverIDs {
+			if strings.Contains(itemID, coverID) {
+				for _, ext := range imageExtensions {
+					if strings.HasSuffix(strings.ToLower(item.Href), ext) {
+						return filepath.Join(opfDir, item.Href)
+					}
+				}
+			}
+		}
+	}
+
+	// Second, look for common cover image filenames in the EPUB
+	coverNames := []string{"cover.jpg", "cover.jpeg", "cover.png", "cover.gif", "cover.webp"}
+	for _, f := range r.File {
+		name := strings.ToLower(f.Name)
+		for _, coverName := range coverNames {
+			if strings.HasSuffix(name, coverName) {
+				return f.Name
+			}
+		}
+	}
+
+	// Third, look in common image directories
+	for _, f := range r.File {
+		name := strings.ToLower(f.Name)
+		if strings.Contains(name, "images/") || strings.Contains(name, "oebps/images/") {
+			for _, ext := range imageExtensions {
+				if strings.HasSuffix(name, ext) {
+					// Prefer files with "cover" in the name
+					if strings.Contains(name, "cover") {
+						return f.Name
+					}
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 func extractPdfMetadata(path string) (string, string) {
@@ -546,6 +619,123 @@ func (s OPDS) joinURL(p string) string {
 	return strings.TrimSuffix(s.BaseURL, "/") + "/" + strings.TrimPrefix(p, "/")
 }
 
+// CoverHandler extracts and serves cover images from EPUB files
+func (s OPDS) CoverHandler(w http.ResponseWriter, req *http.Request) error {
+	filePath := req.URL.Query().Get("file")
+	if filePath == "" {
+		return fmt.Errorf("missing file parameter")
+	}
+
+	urlPath, err := url.PathUnescape(filePath)
+	if err != nil {
+		slog.Error("error unescaping cover path", "filePath", filePath, "error", err)
+		return err
+	}
+
+	fPath := filepath.Join(s.TrustedRoot, urlPath)
+
+	// verifyPath avoid the http transversal by checking the path is under TrustedRoot
+	_, err = verifyPath(fPath, s.TrustedRoot)
+	if err != nil {
+		slog.Error("verify path error for cover", "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+
+	if _, err := os.Stat(fPath); err != nil {
+		slog.Error("file stat error for cover", "error", err)
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+
+	coverData, contentType, err := extractEpubCover(fPath)
+	if err != nil {
+		slog.Error("error extracting cover", "path", fPath, "error", err)
+		return err
+	}
+
+	if coverData == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "max-age=86400")
+	http.ServeContent(w, req, "cover", TimeNow(), bytes.NewReader(coverData))
+	return nil
+}
+
+// extractEpubCover extracts the cover image from an EPUB file
+func extractEpubCover(epubPath string) ([]byte, string, error) {
+	r, err := zip.OpenReader(epubPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("opening epub: %w", err)
+	}
+	defer r.Close()
+
+	var opfPath string
+	for _, f := range r.File {
+		if strings.HasSuffix(f.Name, ".opf") {
+			opfPath = f.Name
+			break
+		}
+	}
+
+	if opfPath == "" {
+		return nil, "", fmt.Errorf("no OPF file found")
+	}
+
+	f, err := r.Open(opfPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("opening OPF: %w", err)
+	}
+	defer f.Close()
+
+	opfContent, err := io.ReadAll(f)
+	if err != nil {
+		return nil, "", fmt.Errorf("reading OPF: %w", err)
+	}
+
+	var opf struct {
+		Manifest struct {
+			Items []struct {
+				ID        string `xml:"id,attr"`
+				Href      string `xml:"href,attr"`
+				MediaType string `xml:"media-type,attr"`
+			} `xml:"item"`
+		} `xml:"manifest"`
+	}
+
+	decoder := xml.NewDecoder(bytes.NewReader(opfContent))
+	if err := decoder.Decode(&opf); err != nil {
+		return nil, "", fmt.Errorf("parsing OPF: %w", err)
+	}
+
+	coverPath := findEpubCover(r, opf.Manifest.Items, opfPath)
+	if coverPath == "" {
+		return nil, "", nil
+	}
+
+	coverFile, err := r.Open(coverPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("opening cover: %w", err)
+	}
+	defer coverFile.Close()
+
+	coverData, err := io.ReadAll(coverFile)
+	if err != nil {
+		return nil, "", fmt.Errorf("reading cover: %w", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(coverPath))
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	return coverData, contentType, nil
+}
+
 func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 	feedBuilder := opds.FeedBuilder.
 		ID(catalog.ID).
@@ -638,6 +828,25 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 
 		if entry.Author != "" {
 			entryBuilder = entryBuilder.Author(&atom.Person{Name: entry.Author})
+		}
+
+		if s.ExtractMetadata && entry.CoverPath != "" && entry.Type == pathTypeFile {
+			coverURL := s.joinURL("/cover?file=" + url.QueryEscape(entryPath))
+			ext := strings.ToLower(filepath.Ext(entry.CoverPath))
+			contentType := mime.TypeByExtension(ext)
+			if contentType == "" {
+				contentType = "image/jpeg"
+			}
+			entryBuilder = entryBuilder.AddLink(opds.LinkBuilder.
+				Rel("http://opds-spec.org/image").
+				Href(coverURL).
+				Type(contentType).
+				Build())
+			entryBuilder = entryBuilder.AddLink(opds.LinkBuilder.
+				Rel("http://opds-spec.org/image/thumbnail").
+				Href(coverURL).
+				Type(contentType).
+				Build())
 		}
 
 		feedBuilder = feedBuilder.AddEntry(entryBuilder.Build())
