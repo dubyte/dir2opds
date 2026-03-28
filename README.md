@@ -45,10 +45,10 @@
 
 ## Quick start
 
-Using Docker (replace `v1.7.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
+Using Docker (replace `v1.8.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
 
 ```bash
-docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.7.0
+docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.8.0
 ```
 
 Then open `http://localhost:8080` in an OPDS client or browser.

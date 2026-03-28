@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-03-28
+
+### Added
+
+- **Pagination** — `-page-size` flag to control entries per page (default: 50, max: 200). Feeds include `first`, `previous`, `next`, `last` navigation links.
+- **ETag/Last-Modified caching** — `-enable-cache` flag for conditional requests (304 Not Modified) to reduce bandwidth.
+- **Gzip compression** — `-gzip` flag to compress responses and reduce bandwidth.
+- **Health endpoint** — `/health` endpoint returning `{"status":"ok"}` for monitoring and load balancers.
+- **EPUB cover extraction** — `-extract-metadata` now extracts cover images from EPUB files and serves them via `/cover?file=` endpoint.
+- **Recommended configuration** — README section with suggested flags for best experience.
+
+### Changed
+
+- `-extract-metadata` now extracts covers from EPUB files in addition to title/author.
+- Removed separate `-extract-covers` flag (consolidated into `-extract-metadata`).
+
 ## [1.7.0] - 2026-03-26
 
 ### Added
