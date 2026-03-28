@@ -145,6 +145,82 @@ func TestBaseURL(t *testing.T) {
 	})
 }
 
+func TestETagAndLastModified(t *testing.T) {
+	s := service.OPDS{
+		TrustedRoot:      "testdata",
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		EnableCache:      true,
+	}
+
+	t.Run("ETag header is set", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		service.TimeNow = func() time.Time {
+			return time.Date(2020, 05, 25, 00, 00, 00, 0, time.UTC)
+		}
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		assert.NotEmpty(t, resp.Header.Get("ETag"), "ETag header should be set")
+		assert.Contains(t, resp.Header.Get("ETag"), `"`, "ETag should be quoted")
+	})
+
+	t.Run("Last-Modified header is set", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		assert.NotEmpty(t, resp.Header.Get("Last-Modified"), "Last-Modified header should be set")
+	})
+
+	t.Run("304 Not Modified with If-None-Match", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		service.TimeNow = func() time.Time {
+			return time.Date(2020, 05, 25, 00, 00, 00, 0, time.UTC)
+		}
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		etag := w.Result().Header.Get("ETag")
+
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req2.Header.Set("If-None-Match", etag)
+
+		err = s.Handler(w2, req2)
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusNotModified, w2.Result().StatusCode)
+	})
+
+	t.Run("304 Not Modified with If-Modified-Since", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		lastModified := w.Result().Header.Get("Last-Modified")
+
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req2.Header.Set("If-Modified-Since", lastModified)
+
+		err = s.Handler(w2, req2)
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusNotModified, w2.Result().StatusCode)
+	})
+}
+
 var feed = `<?xml version="1.0" encoding="UTF-8"?>
   <feed xmlns="http://www.w3.org/2005/Atom">
       <title>Catalog in /</title>

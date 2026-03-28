@@ -7,6 +7,8 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"log/slog"
@@ -58,13 +60,14 @@ type OPDS struct {
 	HideCalibreFiles bool
 	HideDotFiles     bool
 	NoCache          bool
-	SortBy           string // name, date, size
+	EnableCache      bool
+	SortBy           string
 	ShowCovers       bool
 	MimeMap          map[string]string
 	EnableSearch     bool
 	ExtractMetadata  bool
 	BaseURL          string
-	PageSize         int // 0 means default (50)
+	PageSize         int
 }
 
 type Catalog struct {
@@ -73,9 +76,10 @@ type Catalog struct {
 	Type     int
 	Entries  []CatalogEntry
 	Cover    string
-	Total    int // Total number of entries (before pagination)
-	Page     int // Current page (1-indexed)
-	PageSize int // Number of entries per page
+	Total    int
+	Page     int
+	PageSize int
+	ModTime  time.Time
 }
 
 type CatalogEntry struct {
@@ -121,16 +125,30 @@ func parsePage(pageStr string) int {
 	return page
 }
 
+func etag(urlPath string, modTime time.Time, page int) string {
+	h := sha256.New()
+	h.Write([]byte(urlPath))
+	h.Write([]byte(modTime.UTC().Format(time.RFC3339Nano)))
+	h.Write([]byte(strconv.Itoa(page)))
+	return `"` + hex.EncodeToString(h.Sum(nil))[:16] + `"`
+}
+
 func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 	dirEntries, err := os.ReadDir(fPath)
 	if err != nil {
 		return nil, err
 	}
 
+	dirInfo, err := os.Stat(fPath)
+	if err != nil {
+		return nil, err
+	}
+
 	catalog := &Catalog{
-		ID:    urlPath,
-		Title: "Catalog in " + urlPath,
-		Type:  getPathType(fPath),
+		ID:      urlPath,
+		Title:   "Catalog in " + urlPath,
+		Type:    getPathType(fPath),
+		ModTime: dirInfo.ModTime(),
 	}
 
 	for _, entry := range dirEntries {
@@ -156,6 +174,10 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 			ModTime: info.ModTime(),
 			Size:    info.Size(),
 		})
+
+		if info.ModTime().After(catalog.ModTime) {
+			catalog.ModTime = info.ModTime()
+		}
 
 		if s.ExtractMetadata && !entry.IsDir() {
 			idx := len(catalog.Entries) - 1
@@ -381,6 +403,30 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		"total", catalog.Total,
 		"totalPages", (catalog.Total+catalog.PageSize-1)/catalog.PageSize,
 	)
+
+	if s.EnableCache {
+		eTag := etag(urlPath, catalog.ModTime, page)
+		lastModified := catalog.ModTime.UTC()
+
+		w.Header().Set("ETag", eTag)
+		w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
+
+		if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" {
+			if ifNoneMatch == eTag {
+				w.WriteHeader(http.StatusNotModified)
+				return nil
+			}
+		}
+
+		if ifModifiedSince := req.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
+			if t, err := time.Parse(http.TimeFormat, ifModifiedSince); err == nil {
+				if !lastModified.After(t) {
+					w.WriteHeader(http.StatusNotModified)
+					return nil
+				}
+			}
+		}
+	}
 
 	navFeed := s.makeFeed(catalog, req)
 
