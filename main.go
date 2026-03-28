@@ -44,6 +44,7 @@ var (
 	extractMeta  = flag.Bool("extract-metadata", false, "Extract metadata (title, author) from EPUB and PDF files.")
 	baseURL      = flag.String("url", "", "The base URL used for absolute links in the feed (e.g., https://opds.example.com).")
 	logFormat    = flag.String("log-format", "json", "Log format: json, text.")
+	pageSize     = flag.Int("page-size", 50, "Number of entries per page (0 for default, max 200).")
 )
 
 func main() {
@@ -93,6 +94,7 @@ func main() {
 		EnableSearch:     *searchEnable,
 		ExtractMetadata:  *extractMeta,
 		BaseURL:          *baseURL,
+		PageSize:         *pageSize,
 	}
 
 	http.HandleFunc("/", errorHandler(s.Handler))

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,9 +14,9 @@ import (
 func TestVerifyPath(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	
+
 	trustedRoot := filepath.Join(wd, "testdata")
-	
+
 	tests := []struct {
 		name    string
 		path    string
@@ -42,7 +43,7 @@ func TestVerifyPath(t *testing.T) {
 
 func TestInTrustedRoot(t *testing.T) {
 	root := "/home/books"
-	
+
 	assert.True(t, inTrustedRoot("/home/books", root))
 	assert.True(t, inTrustedRoot("/home/books/folder", root))
 	assert.False(t, inTrustedRoot("/home/bookkeeping", root))
@@ -94,4 +95,112 @@ func TestExtractMetadata(t *testing.T) {
 		assert.Equal(t, "The Great Gatsby", parsePdfValue(line, "/Title"))
 		assert.Equal(t, "F. Scott Fitzgerald", parsePdfValue(line, "/Author"))
 	})
+}
+
+func TestParsePage(t *testing.T) {
+	assert.Equal(t, 1, parsePage(""))
+	assert.Equal(t, 1, parsePage("invalid"))
+	assert.Equal(t, 1, parsePage("0"))
+	assert.Equal(t, 1, parsePage("-1"))
+	assert.Equal(t, 1, parsePage("1"))
+	assert.Equal(t, 5, parsePage("5"))
+	assert.Equal(t, 100, parsePage("100"))
+}
+
+func TestPageSize(t *testing.T) {
+	s := OPDS{}
+	assert.Equal(t, defaultPageSize, s.pageSize())
+
+	s.PageSize = 10
+	assert.Equal(t, 10, s.pageSize())
+
+	s.PageSize = 500
+	assert.Equal(t, maxPageSize, s.pageSize())
+
+	s.PageSize = 0
+	assert.Equal(t, defaultPageSize, s.pageSize())
+}
+
+func TestPagination(t *testing.T) {
+	s := OPDS{TrustedRoot: "testdata", HideCalibreFiles: true, HideDotFiles: true}
+
+	t.Run("First page", func(t *testing.T) {
+		catalog, err := s.Scan("testdata/mybook", "/mybook", 1)
+		require.NoError(t, err)
+		assert.Equal(t, 1, catalog.Page)
+		assert.Equal(t, defaultPageSize, catalog.PageSize)
+		assert.Equal(t, 5, catalog.Total)
+	})
+
+	t.Run("Page with small page size", func(t *testing.T) {
+		s.PageSize = 2
+		catalog, err := s.Scan("testdata/mybook", "/mybook", 1)
+		require.NoError(t, err)
+		assert.Equal(t, 1, catalog.Page)
+		assert.Equal(t, 2, catalog.PageSize)
+		assert.Equal(t, 5, catalog.Total)
+		assert.Len(t, catalog.Entries, 2)
+	})
+
+	t.Run("Second page", func(t *testing.T) {
+		s.PageSize = 2
+		catalog, err := s.Scan("testdata/mybook", "/mybook", 2)
+		require.NoError(t, err)
+		assert.Equal(t, 2, catalog.Page)
+		assert.Equal(t, 5, catalog.Total)
+		assert.Len(t, catalog.Entries, 2)
+	})
+
+	t.Run("Last page with partial entries", func(t *testing.T) {
+		s.PageSize = 2
+		catalog, err := s.Scan("testdata/mybook", "/mybook", 3)
+		require.NoError(t, err)
+		assert.Equal(t, 3, catalog.Page)
+		assert.Equal(t, 5, catalog.Total)
+		assert.Len(t, catalog.Entries, 1)
+	})
+
+	t.Run("Page beyond total", func(t *testing.T) {
+		s.PageSize = 2
+		catalog, err := s.Scan("testdata/mybook", "/mybook", 100)
+		require.NoError(t, err)
+		assert.Equal(t, 100, catalog.Page)
+		assert.Empty(t, catalog.Entries)
+	})
+}
+
+func TestBuildPageURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		basePath string
+		query    map[string]string
+		page     int
+		want     string
+	}{
+		{
+			name:     "simple path",
+			basePath: "/",
+			query:    map[string]string{},
+			page:     1,
+			want:     "/?page=1",
+		},
+		{
+			name:     "path with existing query",
+			basePath: "/mybook",
+			query:    map[string]string{"q": "test"},
+			page:     2,
+			want:     "/mybook?page=2&q=test",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values := make(url.Values)
+			for k, v := range tt.query {
+				values.Set(k, v)
+			}
+			result := buildPageURL(tt.basePath, values, tt.page)
+			assert.Equal(t, tt.want, result)
+		})
+	}
 }
