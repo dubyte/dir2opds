@@ -43,4 +43,5 @@ func (f feedBuilder) Build() atom.Feed {
 	return builder.GetStruct(f).(atom.Feed)
 }
 
+// FeedBuilder is a fluent immutable builder to build OPDS Feeds
 var FeedBuilder = builder.Register(feedBuilder{}, atom.Feed{}).(feedBuilder)

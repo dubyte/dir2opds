@@ -376,6 +376,14 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
+	slog.Debug("request",
+		"urlPath", urlPath,
+		"page", catalog.Page,
+		"pageSize", catalog.PageSize,
+		"total", catalog.Total,
+		"totalPages", (catalog.Total+catalog.PageSize-1)/catalog.PageSize,
+	)
+
 	navFeed := s.makeFeed(catalog, req)
 
 	var content []byte
