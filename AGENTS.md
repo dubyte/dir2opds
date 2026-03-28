@@ -148,20 +148,26 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 .
-├── main.go                    # Entry point, CLI flags
+├── main.go                    # Entry point, CLI flags, HTTP routing
 ├── main_test.go               # Main package tests
 ├── internal/
 │   └── service/
-│       ├── service.go         # Core business logic
-│       ├── service_test.go    # External tests
-│       └── internal_test.go   # Internal tests
+│       ├── service.go         # Core business logic (OPDS struct, handlers)
+│       ├── service_test.go    # External tests (package service_test)
+│       ├── internal_test.go   # Internal tests (package service)
+│       ├── gzip.go            # Gzip compression middleware
+│       ├── gzip_test.go       # Gzip middleware tests
+│       ├── health.go          # Health check endpoint
+│       ├── health_test.go     # Health endpoint tests
+│       └── testdata/          # Test fixtures
 ├── opds/                      # OPDS/Atom XML builders
-│   ├── feed_builder.go
-│   ├── entry_builder.go
-│   ├── link_builder.go
-│   ├── author_builder.go
-│   └── text_builder.go
-├── files/                     # Platform-specific files
+│   ├── feed_builder.go        # Feed builder (immutable)
+│   ├── entry_builder.go       # Entry builder
+│   ├── link_builder.go        # Link builder
+│   ├── author_builder.go      # Author builder
+│   ├── text_builder.go        # Text builder
+│   └── doc.go                 # Package documentation
+├── files/                     # Platform-specific files (systemd, etc.)
 ├── Makefile                   # Build automation
 └── go.mod                     # Go module definition
 ```
@@ -170,3 +176,22 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `github.com/lann/builder` - Immutable builders
 - `github.com/stretchr/testify` - Testing utilities
 - `golang.org/x/tools/blog/atom` - Atom feed structs
+
+## Architecture Notes
+
+### Request Flow
+```
+HTTP Request → errorHandler wrapper → OPDS.Handler()
+    ├─ File: http.ServeFile()
+    └─ Directory: Scan() → makeFeed() → XML response
+```
+
+### Key Structs
+- `OPDS` - Main service struct with configuration (TrustedRoot, flags, etc.)
+- `Catalog` - Directory listing with entries, pagination info
+- `CatalogEntry` - Individual file/folder entry
+
+### Extension Points
+- `extractMetadata()` - Add new file format parsers
+- `MimeMap` - Custom MIME type mappings via `-mime-map` flag
+- `GzipMiddleware` - Compression middleware (optional via `-gzip` flag)
