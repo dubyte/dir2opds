@@ -292,3 +292,68 @@ var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
           <updated></updated>
       </entry>
   </feed>`
+
+func TestContentRange(t *testing.T) {
+	s := service.OPDS{
+		TrustedRoot:      "testdata",
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+	}
+
+	t.Run("Range request returns 206 Partial Content", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/mybook/mybook.txt", nil)
+		req.Header.Set("Range", "bytes=0-3")
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusPartialContent, resp.StatusCode)
+		assert.Contains(t, resp.Header.Get("Content-Range"), "bytes 0-3/")
+		assert.Equal(t, "Fixt", string(body))
+	})
+
+	t.Run("Range request with offset", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/mybook/mybook.txt", nil)
+		req.Header.Set("Range", "bytes=4-")
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusPartialContent, resp.StatusCode)
+		assert.Contains(t, resp.Header.Get("Content-Range"), "bytes 4-")
+		assert.Equal(t, "ure", string(body))
+	})
+
+	t.Run("Accept-Ranges header is set for files", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/mybook/mybook.txt", nil)
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		assert.Equal(t, "bytes", resp.Header.Get("Accept-Ranges"))
+	})
+
+	t.Run("Invalid range returns 416 Requested Range Not Satisfiable", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/mybook/mybook.txt", nil)
+		req.Header.Set("Range", "bytes=invalid")
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusRequestedRangeNotSatisfiable, resp.StatusCode)
+	})
+}
