@@ -348,8 +348,6 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		return nil
 	}
 
-	slog.Debug("request", "urlPath", urlPath)
-
 	if _, err := os.Stat(fPath); err != nil {
 		slog.Error("file system stat error", "error", err)
 		w.WriteHeader(http.StatusNotFound)
