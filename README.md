@@ -90,6 +90,7 @@ dir2opds -dir /path/to/books -port 8080
 | `-dir` | Directory with books (default: `./books`) |
 | `-enable-cache` | Enable ETag/Last-Modified headers for conditional requests (bandwidth optimization) |
 | `-extract-metadata` | Extract title/author from EPUB and PDF |
+| `-gzip` | Enable gzip compression for responses (reduces bandwidth) |
 | `-hide-dot-files` | Hide files whose names start with a dot |
 | `-host` | Listen address (default: `0.0.0.0`) |
 | `-log-format` | Log format: `json` (default), `text` |
