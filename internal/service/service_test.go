@@ -72,7 +72,7 @@ func TestScan(t *testing.T) {
 	s := service.OPDS{TrustedRoot: "testdata", HideCalibreFiles: true, HideDotFiles: true}
 
 	t.Run("Scan root (dir of dirs)", func(t *testing.T) {
-		catalog, err := s.Scan("testdata", "/")
+		catalog, err := s.Scan("testdata", "/", 1)
 		require.NoError(t, err)
 		assert.Equal(t, "/", catalog.ID)
 		// testdata has 3 folders: emptyFolder, mybook, new folder
@@ -80,7 +80,7 @@ func TestScan(t *testing.T) {
 	})
 
 	t.Run("Scan mybook (dir of files)", func(t *testing.T) {
-		catalog, err := s.Scan("testdata/mybook", "/mybook")
+		catalog, err := s.Scan("testdata/mybook", "/mybook", 1)
 		require.NoError(t, err)
 		assert.Equal(t, "/mybook", catalog.ID)
 		// mybook has 6 files but mybook.opf should be ignored
@@ -91,7 +91,7 @@ func TestScan(t *testing.T) {
 	})
 
 	t.Run("Scan empty folder", func(t *testing.T) {
-		catalog, err := s.Scan("testdata/emptyFolder", "/emptyFolder")
+		catalog, err := s.Scan("testdata/emptyFolder", "/emptyFolder", 1)
 		require.NoError(t, err)
 		assert.Empty(t, catalog.Entries)
 	})

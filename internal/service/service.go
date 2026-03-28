@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +41,11 @@ const (
 )
 
 const (
+	defaultPageSize = 50
+	maxPageSize     = 200
+)
+
+const (
 	ignoreFile       = true
 	includeFile      = false
 	currentDirectory = "."
@@ -58,14 +64,18 @@ type OPDS struct {
 	EnableSearch     bool
 	ExtractMetadata  bool
 	BaseURL          string
+	PageSize         int // 0 means default (50)
 }
 
 type Catalog struct {
-	ID      string
-	Title   string
-	Type    int
-	Entries []CatalogEntry
-	Cover   string
+	ID       string
+	Title    string
+	Type     int
+	Entries  []CatalogEntry
+	Cover    string
+	Total    int // Total number of entries (before pagination)
+	Page     int // Current page (1-indexed)
+	PageSize int // Number of entries per page
 }
 
 type CatalogEntry struct {
@@ -90,7 +100,28 @@ const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigatio
 var TimeNow = timeNowFunc()
 
 // Scan inspects the directory and builds a Catalog model
-func (s OPDS) Scan(fPath string, urlPath string) (*Catalog, error) {
+func (s OPDS) pageSize() int {
+	if s.PageSize <= 0 {
+		return defaultPageSize
+	}
+	if s.PageSize > maxPageSize {
+		return maxPageSize
+	}
+	return s.PageSize
+}
+
+func parsePage(pageStr string) int {
+	if pageStr == "" {
+		return 1
+	}
+	page := 1
+	if n, err := strconv.Atoi(pageStr); err == nil && n > 0 {
+		page = n
+	}
+	return page
+}
+
+func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 	dirEntries, err := os.ReadDir(fPath)
 	if err != nil {
 		return nil, err
@@ -139,6 +170,26 @@ func (s OPDS) Scan(fPath string, urlPath string) (*Catalog, error) {
 	}
 
 	s.sortEntries(catalog.Entries)
+
+	total := len(catalog.Entries)
+	pageSize := s.pageSize()
+	if page < 1 {
+		page = 1
+	}
+
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+
+	catalog.Total = total
+	catalog.Page = page
+	catalog.PageSize = pageSize
+	catalog.Entries = catalog.Entries[start:end]
 
 	return catalog, nil
 }
@@ -297,8 +348,6 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		return nil
 	}
 
-	slog.Debug("request", "urlPath", urlPath)
-
 	if _, err := os.Stat(fPath); err != nil {
 		slog.Error("file system stat error", "error", err)
 		w.WriteHeader(http.StatusNotFound)
@@ -318,11 +367,20 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		w.Header().Add("Expires", "0")
 	}
 
-	catalog, err := s.Scan(fPath, urlPath)
+	page := parsePage(req.URL.Query().Get("page"))
+	catalog, err := s.Scan(fPath, urlPath, page)
 	if err != nil {
 		slog.Error("error scanning path", "error", err)
 		return err
 	}
+
+	slog.Debug("request",
+		"urlPath", urlPath,
+		"page", catalog.Page,
+		"pageSize", catalog.PageSize,
+		"total", catalog.Total,
+		"totalPages", (catalog.Total+catalog.PageSize-1)/catalog.PageSize,
+	)
 
 	navFeed := s.makeFeed(catalog, req)
 
@@ -353,6 +411,9 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 	if query == "" {
 		return s.Handler(w, req)
 	}
+
+	page := parsePage(req.URL.Query().Get("page"))
+	pageSize := s.pageSize()
 
 	catalog := &Catalog{
 		ID:    "search:" + query,
@@ -386,6 +447,23 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		return err
 	}
+
+	s.sortEntries(catalog.Entries)
+
+	total := len(catalog.Entries)
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+
+	catalog.Total = total
+	catalog.Page = page
+	catalog.PageSize = pageSize
+	catalog.Entries = catalog.Entries[start:end]
 
 	navFeed := s.makeFeed(catalog, req)
 	acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
@@ -429,7 +507,6 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		Updated(TimeNow()).
 		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build())
 
-	// Add search link if enabled
 	if s.EnableSearch {
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("search").
@@ -450,6 +527,42 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 			Href(coverHref).
 			Type(mime.TypeByExtension(filepath.Ext(catalog.Cover))).
 			Build())
+	}
+
+	if catalog.Total > catalog.PageSize {
+		totalPages := (catalog.Total + catalog.PageSize - 1) / catalog.PageSize
+		basePath := req.URL.Path
+		query := req.URL.Query()
+
+		feedType := "application/atom+xml;profile=opds-catalog;kind=navigation"
+		if catalog.Type == pathTypeDirOfFiles {
+			feedType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
+		}
+
+		if catalog.Page > 1 {
+			feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+				Rel("first").
+				Href(s.joinURL(buildPageURL(basePath, query, 1))).
+				Type(feedType).
+				Build())
+			feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+				Rel("previous").
+				Href(s.joinURL(buildPageURL(basePath, query, catalog.Page-1))).
+				Type(feedType).
+				Build())
+		}
+		if catalog.Page < totalPages {
+			feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+				Rel("next").
+				Href(s.joinURL(buildPageURL(basePath, query, catalog.Page+1))).
+				Type(feedType).
+				Build())
+			feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+				Rel("last").
+				Href(s.joinURL(buildPageURL(basePath, query, totalPages))).
+				Type(feedType).
+				Build())
+		}
 	}
 
 	for _, entry := range catalog.Entries {
@@ -484,6 +597,11 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		feedBuilder = feedBuilder.AddEntry(entryBuilder.Build())
 	}
 	return feedBuilder.Build()
+}
+
+func buildPageURL(basePath string, query url.Values, page int) string {
+	query.Set("page", strconv.Itoa(page))
+	return basePath + "?" + query.Encode()
 }
 
 func fileShouldBeIgnored(filename string, hideCalibreFiles, hideDotFiles bool) bool {
