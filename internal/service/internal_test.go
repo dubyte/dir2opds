@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -203,4 +204,33 @@ func TestBuildPageURL(t *testing.T) {
 			assert.Equal(t, tt.want, result)
 		})
 	}
+}
+
+func TestEtag(t *testing.T) {
+	t1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	t2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+
+	etag1 := etag("/path", t1, 1)
+	etag2 := etag("/path", t1, 1)
+	assert.Equal(t, etag1, etag2, "same inputs should produce same etag")
+
+	etag3 := etag("/path", t2, 1)
+	assert.NotEqual(t, etag1, etag3, "different time should produce different etag")
+
+	etag4 := etag("/path", t1, 2)
+	assert.NotEqual(t, etag1, etag4, "different page should produce different etag")
+
+	etag5 := etag("/other", t1, 1)
+	assert.NotEqual(t, etag1, etag5, "different path should produce different etag")
+
+	assert.True(t, strings.HasPrefix(etag1, `"`), "etag should be quoted")
+	assert.True(t, strings.HasSuffix(etag1, `"`), "etag should be quoted")
+}
+
+func TestCatalogModTime(t *testing.T) {
+	s := OPDS{TrustedRoot: "testdata", HideCalibreFiles: true, HideDotFiles: true}
+
+	catalog, err := s.Scan("testdata/mybook", "/mybook", 1)
+	require.NoError(t, err)
+	assert.False(t, catalog.ModTime.IsZero(), "ModTime should be set")
 }

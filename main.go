@@ -37,6 +37,7 @@ var (
 	calibre      = flag.Bool("calibre", false, "Hide files stored by calibre.")
 	hideDotFiles = flag.Bool("hide-dot-files", false, "Hide files that starts with dot.")
 	noCache      = flag.Bool("no-cache", false, "adds reponse headers to avoid client from caching.")
+	enableCache  = flag.Bool("enable-cache", false, "Enable ETag and Last-Modified headers for conditional requests.")
 	sortBy       = flag.String("sort", "name", "Sort entries by: name, date, size.")
 	showCovers   = flag.Bool("show-covers", false, "Show cover.jpg or folder.jpg as catalog cover.")
 	mimeMapStr   = flag.String("mime-map", "", "Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')")
@@ -88,6 +89,7 @@ func main() {
 		HideCalibreFiles: *calibre,
 		HideDotFiles:     *hideDotFiles,
 		NoCache:          *noCache,
+		EnableCache:      *enableCache,
 		SortBy:           *sortBy,
 		ShowCovers:       *showCovers,
 		MimeMap:          parseMimeMap(*mimeMapStr),
