@@ -35,7 +35,7 @@
 - **No database** — Reads directly from your filesystem; no Calibre or extra setup
 - **Flexible layout** — Organize by folders; optional metadata from EPUB/PDF
 - **Search** — Optional filename search (OpenSearch)
-- **Covers** — Optional `cover.jpg` / `folder.jpg` as catalog covers
+- **Covers** — Optional `cover.jpg` / `folder.jpg` as catalog covers, or extract covers from EPUB files
 - **Pagination** — Configurable page size for large catalogs
 - **Caching** — ETag/Last-Modified for conditional requests, gzip compression
 - **Health endpoint** — `/health` endpoint for monitoring and load balancers
@@ -92,7 +92,7 @@ dir2opds -dir /path/to/books -port 8080
 | `-debug` | Log requests |
 | `-dir` | Directory with books (default: `./books`) |
 | `-enable-cache` | Enable ETag/Last-Modified headers for conditional requests (bandwidth optimization) |
-| `-extract-metadata` | Extract title/author from EPUB and PDF |
+| `-extract-metadata` | Extract title/author from EPUB and PDF, and covers from EPUB |
 | `-gzip` | Enable gzip compression for responses (reduces bandwidth) |
 | `-hide-dot-files` | Hide files whose names start with a dot |
 | `-host` | Listen address (default: `0.0.0.0`) |
@@ -105,6 +105,25 @@ dir2opds -dir /path/to/books -port 8080
 | `-show-covers` | Use `cover.jpg` or `folder.jpg` as catalog covers |
 | `-sort` | Sort entries: `name`, `date`, or `size` (default: `name`) |
 | `-url` | The base URL used for absolute links in the feed (e.g., `https://opds.example.com`) |
+
+### Recommended Configuration
+
+For the best experience, use these flags:
+
+```bash
+dir2opds -dir /path/to/books -extract-metadata -enable-cache -gzip
+```
+
+This enables:
+- **Metadata extraction** — Shows book titles and authors instead of filenames, plus cover thumbnails
+- **Caching** — Reduces bandwidth with ETag/Last-Modified headers
+- **Gzip compression** — Further reduces bandwidth for large catalogs
+
+For public servers, also set the base URL:
+
+```bash
+dir2opds -dir /path/to/books -extract-metadata -enable-cache -gzip -url https://opds.example.com
+```
 
 ---
 

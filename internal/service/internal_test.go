@@ -1,6 +1,7 @@
 package service
 
 import (
+	"archive/zip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -85,10 +86,8 @@ func TestSortEntries(t *testing.T) {
 func TestExtractMetadata(t *testing.T) {
 	t.Run("Extract EPUB", func(t *testing.T) {
 		path := filepath.Join("testdata", "mybook", "mybook.epub")
-		title, author := extractEpubMetadata(path)
-		// We don't know the exact content of the fixture but it should not crash
-		// If the fixture is valid, we could assert more.
-		t.Logf("EPUB Title: %q, Author: %q", title, author)
+		title, author, coverPath := extractEpubMetadata(path)
+		t.Logf("EPUB Title: %q, Author: %q, CoverPath: %q", title, author, coverPath)
 	})
 
 	t.Run("Parse PDF value", func(t *testing.T) {
@@ -233,4 +232,39 @@ func TestCatalogModTime(t *testing.T) {
 	catalog, err := s.Scan("testdata/mybook", "/mybook", 1)
 	require.NoError(t, err)
 	assert.False(t, catalog.ModTime.IsZero(), "ModTime should be set")
+}
+
+func TestExtractEpubCover(t *testing.T) {
+	t.Run("Valid EPUB", func(t *testing.T) {
+		path := filepath.Join("testdata", "mybook", "mybook.epub")
+		data, contentType, err := extractEpubCover(path)
+		require.NoError(t, err)
+		t.Logf("Cover content-type: %s, size: %d bytes", contentType, len(data))
+	})
+
+	t.Run("Non-existent file", func(t *testing.T) {
+		_, _, err := extractEpubCover(filepath.Join("testdata", "nonexistent.epub"))
+		assert.Error(t, err)
+	})
+}
+
+func TestFindEpubCover(t *testing.T) {
+	t.Run("EPUB with cover", func(t *testing.T) {
+		path := filepath.Join("testdata", "mybook", "mybook.epub")
+		r, err := zip.OpenReader(path)
+		require.NoError(t, err)
+		defer r.Close()
+
+		var opfPath string
+		for _, f := range r.File {
+			if strings.HasSuffix(f.Name, ".opf") {
+				opfPath = f.Name
+				break
+			}
+		}
+		require.NotEmpty(t, opfPath, "should find OPF file")
+
+		coverPath := findEpubCover(r, nil, opfPath)
+		t.Logf("Found cover path: %q", coverPath)
+	})
 }
