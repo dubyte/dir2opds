@@ -35,3 +35,5 @@ dist/
 # OS specific junk
 # macOS
 .DS_Store
+
+.opencode/
