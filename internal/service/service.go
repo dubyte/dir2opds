@@ -68,6 +68,7 @@ type OPDS struct {
 	MimeMap          map[string]string
 	EnableSearch     bool
 	ExtractMetadata  bool
+	EnableHTML       bool
 	BaseURL          string
 	PageSize         int
 	NoPagination     bool
@@ -431,6 +432,11 @@ func (s OPDS) sortEntries(entries []CatalogEntry) {
 	}
 }
 
+func isBrowser(r *http.Request) bool {
+	accept := r.Header.Get("Accept")
+	return strings.Contains(accept, "text/html")
+}
+
 // Handler serves the content of a book file or
 // returns an Acquisition Feed when the entries are documents or
 // returns a Navigation Feed when the entries are other folders
@@ -508,6 +514,10 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 				}
 			}
 		}
+	}
+
+	if s.EnableHTML && isBrowser(req) {
+		return s.renderHTML(w, req, catalog)
 	}
 
 	navFeed := s.makeFeed(catalog, req)
@@ -592,6 +602,10 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 	catalog.Page = page
 	catalog.PageSize = pageSize
 	catalog.Entries = catalog.Entries[start:end]
+
+	if s.EnableHTML && isBrowser(req) {
+		return s.renderHTML(w, req, catalog)
+	}
 
 	navFeed := s.makeFeed(catalog, req)
 	acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
