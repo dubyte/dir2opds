@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Browser detection and HTML view** — `-enable-html` flag to provide a modern, web-friendly interface when accessed via a web browser.
 - **No Pagination option** — `-no-pagination` flag to disable pagination and show all entries in a single feed.
 
 ## [1.8.0] - 2026-03-28

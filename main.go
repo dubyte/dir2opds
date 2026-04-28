@@ -44,6 +44,7 @@ var (
 	mimeMapStr   = flag.String("mime-map", "", "Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')")
 	searchEnable = flag.Bool("search", false, "Enable basic filename search.")
 	extractMeta  = flag.Bool("extract-metadata", false, "Extract metadata (title, author, cover) from EPUB and PDF files.")
+	enableHTML   = flag.Bool("enable-html", false, "Enable web-friendly HTML view for browsers.")
 	baseURL      = flag.String("url", "", "The base URL used for absolute links in the feed (e.g., https://opds.example.com).")
 	logFormat    = flag.String("log-format", "json", "Log format: json, text.")
 	pageSize     = flag.Int("page-size", 50, "Number of entries per page (0 for default, max 200).")
@@ -97,6 +98,7 @@ func main() {
 		MimeMap:          parseMimeMap(*mimeMapStr),
 		EnableSearch:     *searchEnable,
 		ExtractMetadata:  *extractMeta,
+		EnableHTML:       *enableHTML,
 		BaseURL:          *baseURL,
 		PageSize:         *pageSize,
 		NoPagination:     *noPagination,

@@ -36,6 +36,7 @@
 - **Flexible layout** — Organize by folders; optional metadata from EPUB/PDF
 - **Search** — Optional filename search (OpenSearch)
 - **Covers** — Optional `cover.jpg` / `folder.jpg` as catalog covers, or extract covers from EPUB files
+- **Web-friendly** — Optional HTML interface for browsing your collection via a web browser
 - **Pagination** — Configurable page size for large catalogs
 - **Caching** — ETag/Last-Modified for conditional requests, gzip compression
 - **Health endpoint** — `/health` endpoint for monitoring and load balancers
@@ -96,6 +97,7 @@ dir2opds -dir /path/to/books -port 8080
 | `-debug` | Log requests |
 | `-dir` | Directory with books (default: `./books`) |
 | `-enable-cache` | Enable ETag/Last-Modified headers for conditional requests (bandwidth optimization) |
+| `-enable-html` | Enable web-friendly HTML view for browsers |
 | `-extract-metadata` | Extract title/author from EPUB and PDF, and covers from EPUB |
 | `-gzip` | Enable gzip compression for responses (reduces bandwidth) |
 | `-hide-dot-files` | Hide files whose names start with a dot |
@@ -117,13 +119,14 @@ dir2opds -dir /path/to/books -port 8080
 For the best experience, use these flags:
 
 ```bash
-dir2opds -dir /path/to/books -extract-metadata -enable-cache -gzip
+dir2opds -dir /path/to/books -extract-metadata -enable-cache -gzip -enable-html
 ```
 
 This enables:
 - **Metadata extraction** — Shows book titles and authors instead of filenames, plus cover thumbnails
 - **Caching** — Reduces bandwidth with ETag/Last-Modified headers
 - **Gzip compression** — Further reduces bandwidth for large catalogs
+- **Web-friendly UI** — Provides a modern HTML interface when browsing via a web browser
 
 For public servers, also set the base URL:
 

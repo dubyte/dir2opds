@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ func TestHandler(t *testing.T) {
 		"servingAFile":                        {input: "/mybook/mybook.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8", wantedStatusCode: 200},
 		"serving file with spaces":            {input: "/mybook/mybook%20copy.txt", want: "Fixture", WantedContentType: "text/plain; charset=utf-8", wantedStatusCode: 200},
 		"http trasversal vulnerability check": {input: "/../../../../mybook", want: feed, WantedContentType: "application/atom+xml;profile=opds-catalog;kind=navigation", wantedStatusCode: 404},
+		"browser request (HTML)":              {input: "/", want: "dir2opds", WantedContentType: "text/html; charset=utf-8", wantedStatusCode: 200},
 	}
 
 	for name, tc := range tests {
@@ -40,9 +42,13 @@ func TestHandler(t *testing.T) {
 				HideCalibreFiles: true,
 				HideDotFiles:     true,
 				NoCache:          true,
+				EnableHTML:       strings.Contains(name, "browser request"),
 			}
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, tc.input, nil)
+			if strings.Contains(name, "browser request") {
+				req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+			}
 			service.TimeNow = func() time.Time {
 				return time.Date(2020, 05, 25, 00, 00, 00, 0, time.UTC)
 			}
@@ -62,7 +68,11 @@ func TestHandler(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tc.WantedContentType, resp.Header.Get("Content-Type"))
-			assert.Equal(t, tc.want, string(body))
+			if name == "browser request (HTML)" {
+				assert.Contains(t, string(body), tc.want)
+			} else {
+				assert.Equal(t, tc.want, string(body))
+			}
 		})
 	}
 
@@ -129,6 +139,24 @@ func TestBaseURL(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Contains(t, string(body), `href="https://opds.example.com/mybook/mybook.epub"`)
+	})
+
+	t.Run("Search browser support", func(t *testing.T) {
+		s.EnableSearch = true
+		s.EnableHTML = true
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/search?q=mybook", nil)
+		req.Header.Set("Accept", "text/html")
+
+		err := s.SearchHandler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		assert.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
+		assert.Contains(t, string(body), "Search results for: mybook")
 	})
 
 	t.Run("OpenSearch with BaseURL", func(t *testing.T) {
