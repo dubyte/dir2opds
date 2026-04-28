@@ -45,11 +45,15 @@
 
 ## Quick start
 
-Using Docker (replace `v1.8.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
+Using Docker (replace `v1.9.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
 
 ```bash
-docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.8.0
+docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.9.0
 ```
+
+```
+
+Then open
 
 Then open `http://localhost:8080` in an OPDS client or browser.
 
@@ -99,8 +103,10 @@ dir2opds -dir /path/to/books -port 8080
 | `-log-format` | Log format: `json` (default), `text` |
 | `-mime-map` | Custom MIME types, e.g. `.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook` |
 | `-no-cache` | Add response headers to disable client caching |
+| `-no-pagination` | Disable pagination and show all entries in a single feed |
 | `-page-size` | Number of entries per page (default: `50`, max: `200`) |
 | `-port` | Listen port (default: `8080`) |
+| `-search` | Enable basic filename search |
 | `-search` | Enable basic filename search |
 | `-show-covers` | Use `cover.jpg` or `folder.jpg` as catalog covers |
 | `-sort` | Sort entries: `name`, `date`, or `size` (default: `name`) |
@@ -203,7 +209,24 @@ dir2opds -dir /books -page-size 100
 
 # Maximum page size: 200 entries
 dir2opds -dir /books -page-size 200
+
+# Disable pagination: show all entries
+dir2opds -dir /books -no-pagination
 ```
+
+### Disabling Pagination
+
+For small libraries or when using clients that work better with complete feeds, you can disable pagination entirely:
+
+```bash
+dir2opds -dir /books -no-pagination
+```
+
+When `-no-pagination` is set:
+- All entries are included in a single feed
+- No pagination navigation links are generated
+- The `?page=N` query parameter is ignored
+- Recommended for libraries with fewer than a few hundred books
 
 ### OPDS Feed Links
 

@@ -70,6 +70,7 @@ type OPDS struct {
 	ExtractMetadata  bool
 	BaseURL          string
 	PageSize         int
+	NoPagination     bool
 }
 
 type Catalog struct {
@@ -203,6 +204,14 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 	pageSize := s.pageSize()
 	if page < 1 {
 		page = 1
+	}
+
+	// When NoPagination is enabled, show all entries on a single page
+	if s.NoPagination {
+		pageSize = total
+		if pageSize == 0 {
+			pageSize = 1 // Avoid division by zero
+		}
 	}
 
 	start := (page - 1) * pageSize
@@ -765,7 +774,7 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 			Build())
 	}
 
-	if catalog.Total > catalog.PageSize {
+	if !s.NoPagination && catalog.Total > catalog.PageSize {
 		totalPages := (catalog.Total + catalog.PageSize - 1) / catalog.PageSize
 		basePath := req.URL.Path
 		query := req.URL.Query()
