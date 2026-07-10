@@ -842,6 +842,8 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		entryBuilder := opds.EntryBuilder.
 			ID(req.URL.Path + entry.Name).
 			Title(title).
+			Published(entry.ModTime.UTC()).
+			Updated(entry.ModTime.UTC()).
 			AddLink(opds.LinkBuilder.
 				Rel(getRel(entry.Name, entry.Type)).
 				Title(entry.Name).
@@ -955,11 +957,10 @@ func getPathType(dirpath string) int {
 	}
 
 	for _, entry := range dirEntries {
-		if isFile(entry) {
+		if isFile(entry) && !strings.HasPrefix(entry.Name(), hiddenFilePrefix) {
 			return pathTypeDirOfFiles
 		}
 	}
-	// Directory of directories
 	return pathTypeDirOfDirs
 }
 

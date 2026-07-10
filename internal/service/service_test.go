@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -13,12 +15,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func touchTestData(t *testing.T, root string, modTime time.Time) {
+	t.Helper()
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		return os.Chtimes(path, modTime, modTime)
+	})
+	require.NoError(t, err)
+}
+
 func TestHandler(t *testing.T) {
 	// pre-setup
 	nowFn := service.TimeNow
 	defer func() {
 		service.TimeNow = nowFn
 	}()
+
+	touchTestData(t, "testdata", time.Date(2020, 5, 25, 0, 0, 0, 0, time.UTC))
 
 	tests := map[string]struct {
 		input             string
@@ -258,23 +273,23 @@ var feed = `<?xml version="1.0" encoding="UTF-8"?>
       <entry>
           <title>emptyFolder</title>
           <id>/emptyFolder</id>
-          <link rel="subsection" href="/emptyFolder" type="application/atom+xml;profile=opds-catalog;kind=acquisition" title="emptyFolder"></link>
-          <published></published>
-          <updated></updated>
+          <link rel="subsection" href="/emptyFolder" type="application/atom+xml;profile=opds-catalog;kind=navigation" title="emptyFolder"></link>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook</title>
           <id>/mybook</id>
           <link rel="subsection" href="/mybook" type="application/atom+xml;profile=opds-catalog;kind=acquisition" title="mybook"></link>
-          <published></published>
-          <updated></updated>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>new folder</title>
           <id>/new folder</id>
           <link rel="subsection" href="/new%20folder" type="application/atom+xml;profile=opds-catalog;kind=acquisition" title="new folder"></link>
-          <published></published>
-          <updated></updated>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
   </feed>`
 
@@ -288,36 +303,36 @@ var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
           <title>mybook copy.epub</title>
           <id>/mybookmybook copy.epub</id>
           <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook%20copy.epub" type="application/epub+zip" title="mybook copy.epub"></link>
-          <published></published>
-          <updated></updated>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook copy.txt</title>
           <id>/mybookmybook copy.txt</id>
           <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook%20copy.txt" type="text/plain; charset=utf-8" title="mybook copy.txt"></link>
-          <published></published>
-          <updated></updated>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook.epub</title>
           <id>/mybookmybook.epub</id>
           <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook.epub" type="application/epub+zip" title="mybook.epub"></link>
-          <published></published>
-          <updated></updated>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook.pdf</title>
           <id>/mybookmybook.pdf</id>
           <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook.pdf" type="application/pdf" title="mybook.pdf"></link>
-          <published></published>
-          <updated></updated>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook.txt</title>
           <id>/mybookmybook.txt</id>
           <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook.txt" type="text/plain; charset=utf-8" title="mybook.txt"></link>
-          <published></published>
-          <updated></updated>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
   </feed>`
 
