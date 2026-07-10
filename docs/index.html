@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dir2opds — Self-Hosted OPDS Ebook Server & Digital Library</title>
+    <meta name="description" content="dir2opds is a self-hosted OPDS ebook server that turns any folder into a digital library. No database, no Calibre—just point it at your books and browse with any OPDS client.">
+    <meta name="keywords" content="dir2opds, OPDS, ebook server, self-hosted, digital library, EPUB, PDF, MOBI, ebook reader, Calibre alternative, personal library, Go, golang">
+    <meta name="author" content="Sinuhé Téllez Rivera">
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://dubyte.github.io/dir2opds/">
+    <meta property="og:title" content="dir2opds — Self-Hosted OPDS Ebook Server">
+    <meta property="og:description" content="Turn any folder into a digital library. Self-hosted, lightweight, and OPDS 1.1 compliant. No database required.">
+    <meta property="og:site_name" content="dir2opds">
+    <meta property="og:image" content="https://dubyte.github.io/dir2opds/assets/social-preview.png">
+    <meta property="og:image:width" content="1280">
+    <meta property="og:image:height" content="640">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="dir2opds — Self-Hosted OPDS Ebook Server">
+    <meta name="twitter:description" content="Turn any folder into a digital library. Self-hosted, lightweight, and OPDS 1.1 compliant. No database required.">
+    <meta name="twitter:image" content="https://dubyte.github.io/dir2opds/assets/social-preview.png">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://dubyte.github.io/dir2opds/">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
+
+    <style>
+        :root {
+            --bg: #f6f8fa;
+            --text: #24292f;
+            --accent: #0969da;
+            --muted: #57606a;
+            --border: #d0d7de;
+            --card-bg: #ffffff;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0d1117;
+                --text: #c9d1d9;
+                --accent: #58a6ff;
+                --muted: #8b949e;
+                --border: #30363d;
+                --card-bg: #161b22;
+            }
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { color: var(--muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+        .badge {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+        .cta {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.1s;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        ul { list-style: none; }
+        ul li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+        ul li:last-child { border-bottom: none; }
+        code {
+            background: var(--bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        pre code { padding: 0; background: none; }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .feature-card {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 6px;
+        }
+        .feature-card h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+        .feature-card p { font-size: 0.9rem; color: var(--muted); }
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 2rem;
+        }
+        footer a { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📚 dir2opds</h1>
+        <p>Self-hosted <strong>OPDS ebook server</strong> — turn any folder into a <strong>digital library</strong>. No database, no Calibre. Just your books, served.</p>
+        <span class="badge">OPDS 1.1 Compliant</span>
+    </header>
+
+    <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/dubyte/dir2opds#quick-start">Get Started</a>
+        <a class="btn btn-secondary" href="https://github.com/dubyte/dir2opds">View on GitHub</a>
+        <a class="btn btn-secondary" href="https://github.com/dubyte/dir2opds/releases">Download</a>
+    </div>
+
+    <section>
+        <h2>⚡ Quick Start</h2>
+        <p>Run your own ebook server in seconds with Docker:</p>
+        <pre><code>docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:latest</code></pre>
+        <p>Or install with Go:</p>
+        <pre><code>go install github.com/dubyte/dir2opds@latest
+dir2opds -dir /path/to/books -port 8080</code></pre>
+    </section>
+
+    <section>
+        <h2>✨ Why dir2opds?</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>🗂️ No Database</h3>
+                <p>Reads directly from your filesystem. No Calibre, no complex setup. Just point it at a folder.</p>
+            </div>
+            <div class="feature-card">
+                <h3>📱 Any Client</h3>
+                <p>Works with Moon+ Reader, Cantook, KYBook, and any OPDS-compatible ebook reader app.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🏠 Self-Hosted</h3>
+                <p>Run on a Raspberry Pi, NAS, home server, or VPS. Keep your library private and local.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🐳 Container Ready</h3>
+                <p>Single binary or Docker image. Lightweight and ideal for headless servers.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🔍 Search & Covers</h3>
+                <p>Optional filename search, EPUB/PDF metadata extraction, and cover image support.</p>
+            </div>
+            <div class="feature-card">
+                <h3>⚡ Fast & Cached</h3>
+                <p>ETag/Last-Modified headers, gzip compression, and pagination for large catalogs.</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>📖 What is OPDS?</h2>
+        <p><a href="https://opds-spec.org">OPDS</a> (Open Publication Distribution System) is an open standard for cataloging and distributing ebooks. OPDS clients can browse, search, and download books from any OPDS server — including <strong>dir2opds</strong>, your personal self-hosted ebook library.</p>
+    </section>
+
+    <section>
+        <h2>🛠️ Supported Formats</h2>
+        <ul>
+            <li><span>📕</span> <strong>EPUB</strong> — with optional metadata and cover extraction</li>
+            <li><span>📗</span> <strong>PDF</strong> — with optional title/author extraction</li>
+            <li><span>📘</span> <strong>MOBI / AZW3</strong> — via configurable MIME types</li>
+            <li><span>📙</span> <strong>CBZ / CBR</strong> — comic book archive support</li>
+            <li><span>📄</span> <strong>FB2, TXT, and more</strong> — customizable via MIME map</li>
+        </ul>
+    </section>
+
+    <footer>
+        <p>dir2opds is free software licensed under <a href="https://www.gnu.org/licenses/gpl-3.0">GPL-3.0</a>.</p>
+        <p>Made with ❤️ by <a href="https://github.com/dubyte">Sinuhé Téllez Rivera</a> and <a href="https://github.com/dubyte/dir2opds/graphs/contributors">contributors</a>.</p>
+    </footer>
+</body>
+</html>

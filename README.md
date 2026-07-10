@@ -4,7 +4,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Releases](https://img.shields.io/github/v/release/dubyte/dir2opds?include_prereleases&label=release)](https://github.com/dubyte/dir2opds/releases)
 
-**Serve an OPDS 1.1–compliant book catalog from a directory.** No database, no Calibre—just point dir2opds at a folder and use any OPDS client to browse and download your books.
+**dir2opds is a self-hosted OPDS ebook server that turns any folder into a digital library.** No database, no Calibre—just point it at your book collection and browse or download via any OPDS-compatible ebook reader or web browser.
 
 ---
 
@@ -27,10 +27,20 @@
 
 ## What is OPDS?
 
-[OPDS](http://opds-spec.org) (Open Publication Distribution System) is a standard for cataloging and distributing digital publications. OPDS clients (ebook readers, apps) can discover, browse, and download books from an OPDS server. dir2opds turns a plain directory tree into such a server.
+[OPDS](http://opds-spec.org) (Open Publication Distribution System) is a standard for cataloging and distributing digital publications. OPDS clients (ebook readers, apps) can discover, browse, and download books from an OPDS server. dir2opds is a lightweight, self-hosted OPDS server that turns a plain directory tree into a personal digital library—no database or complex setup required.
+
+## Who is it for?
+
+dir2opds is ideal for anyone who wants a **self-hosted digital library** without the complexity of Calibre or other database-driven solutions. It is perfect for:
+
+- **Home server enthusiasts** — Run a personal ebook server on a Raspberry Pi, NAS, or home server
+- **Ebook collectors** — Browse and download EPUB, PDF, MOBI, and more from any OPDS-compatible reader
+- **Privacy-focused users** — Keep your book collection local instead of relying on cloud services
+- **Developers and sysadmins** — Deploy a lightweight, containerized ebook server in seconds
 
 ## Features
 
+- **Self-hosted OPDS ebook server** — Run your own digital library at home or on a VPS
 - **OPDS 1.1 compliant** — Works with standard ebook readers and OPDS clients
 - **No database** — Reads directly from your filesystem; no Calibre or extra setup
 - **Flexible layout** — Organize by folders; optional metadata from EPUB/PDF
@@ -42,7 +52,8 @@
 - **Health endpoint** — `/health` endpoint for monitoring and load balancers
 - **Structured Logging** — Uses `log/slog` for JSON (default) or text logging
 - **Multiple formats** — EPUB, PDF, MOBI, AZW3, and more via configurable MIME types
-- **Lightweight** — Single binary; suitable for headless servers and containers
+- **Lightweight** — Single binary; ideal for self-hosted setups, headless servers, and containers
+- **Calibre alternative** — Simple, database-free approach to serving ebooks
 
 ## Quick start
 
@@ -54,8 +65,6 @@ docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2
 
 ```
 
-Then open
-
 Then open `http://localhost:8080` in an OPDS client or browser.
 
 **Using Go:**
@@ -65,7 +74,7 @@ go install github.com/dubyte/dir2opds@latest
 dir2opds -dir /path/to/books -port 8080
 ```
 
-**Tip:** For best client compatibility, use folders that contain either only subfolders (navigation) or only book files (acquisition), not mixed.
+**Tip:** For best client compatibility, use folders that contain either only subfolders (navigation) or only book files (acquisition), not mixed. This keeps your self-hosted digital library well-organized and easy to browse.
 
 ---
 
@@ -108,7 +117,6 @@ dir2opds -dir /path/to/books -port 8080
 | `-no-pagination` | Disable pagination and show all entries in a single feed |
 | `-page-size` | Number of entries per page (default: `50`, max: `200`) |
 | `-port` | Listen port (default: `8080`) |
-| `-search` | Enable basic filename search |
 | `-search` | Enable basic filename search |
 | `-show-covers` | Use `cover.jpg` or `folder.jpg` as catalog covers |
 | `-sort` | Sort entries: `name`, `date`, or `size` (default: `name`) |
