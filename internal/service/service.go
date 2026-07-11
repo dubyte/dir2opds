@@ -129,6 +129,24 @@ func parsePage(pageStr string) int {
 	return page
 }
 
+func getSortFromQuery(req *http.Request) string {
+	sortBy := req.URL.Query().Get("sort")
+	switch sortBy {
+	case "name", "date", "size":
+		return sortBy
+	default:
+		return ""
+	}
+}
+
+func cloneURLValues(v url.Values) url.Values {
+	clone := make(url.Values, len(v))
+	for k, vals := range v {
+		clone[k] = append([]string(nil), vals...)
+	}
+	return clone
+}
+
 func etag(urlPath string, modTime time.Time, page int) string {
 	h := sha256.New()
 	h.Write([]byte(urlPath))
@@ -477,6 +495,11 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	page := parsePage(req.URL.Query().Get("page"))
+	sortBy := getSortFromQuery(req)
+	if sortBy != "" {
+		s.SortBy = sortBy
+	}
+
 	catalog, err := s.Scan(fPath, urlPath, page)
 	if err != nil {
 		slog.Error("error scanning path", "error", err)
@@ -524,10 +547,13 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	var content []byte
 	// it is an acquisition feed
 	if catalog.Type == pathTypeDirOfFiles {
-		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
+		navFeed.Opds = "http://opds-spec.org/2010/catalog"
+		navFeed.Opds = "http://opds-spec.org/2010/catalog"
+		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/"}
 		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
 	} else { // it is a navigation feed
+		navFeed.Opds = "http://opds-spec.org/2010/catalog"
 		content, err = xml.MarshalIndent(navFeed, "  ", "    ")
 		w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 	}
@@ -551,6 +577,11 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 
 	page := parsePage(req.URL.Query().Get("page"))
 	pageSize := s.pageSize()
+
+	sortBy := getSortFromQuery(req)
+	if sortBy != "" {
+		s.SortBy = sortBy
+	}
 
 	catalog := &Catalog{
 		ID:    "search:" + query,
@@ -607,11 +638,12 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	navFeed := s.makeFeed(catalog, req)
-	acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/", Opds: "http://opds-spec.org/2010/catalog"}
-	content, err := xml.MarshalIndent(acFeed, "  ", "    ")
-	if err != nil {
-		return err
-	}
+		navFeed.Opds = "http://opds-spec.org/2010/catalog"
+		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/"}
+		content, err := xml.MarshalIndent(acFeed, "  ", "    ")
+		if err != nil {
+			return err
+		}
 
 	w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
 	content = append([]byte(xml.Header), content...)
@@ -833,6 +865,31 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 				Href(s.joinURL(buildPageURL(basePath, query, totalPages))).
 				Type(feedType).
 				Build())
+		}
+	}
+
+	if catalog.Total > 1 {
+		sortOptions := []struct{ label, value string }{
+			{"Name", "name"},
+			{"Date", "date"},
+			{"Size", "size"},
+		}
+		basePath := req.URL.Path
+		query := req.URL.Query()
+		for _, opt := range sortOptions {
+			facetQuery := cloneURLValues(query)
+			facetQuery.Set("sort", opt.value)
+			facetURL := basePath + "?" + facetQuery.Encode()
+			facetBuilder := opds.LinkBuilder.
+				Rel("http://opds-spec.org/facet").
+				Href(s.joinURL(facetURL)).
+				Title(opt.label).
+				Type(feedType).
+				FacetGroup("Sort By")
+			if opt.value == s.SortBy || (s.SortBy == "" && opt.value == "name") {
+				facetBuilder = facetBuilder.ActiveFacet("true")
+			}
+			feedBuilder = feedBuilder.AddLink(facetBuilder.Build())
 		}
 	}
 

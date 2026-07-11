@@ -22,6 +22,7 @@ type Feed struct {
 	Updated TimeStr  `xml:"updated"`
 	Author  *Person  `xml:"author"`
 	Entry   []*Entry `xml:"entry"`
+	Opds    string   `xml:"xmlns:opds,attr,omitempty"`
 }
 
 // Entry is an Atom entry.

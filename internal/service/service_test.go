@@ -265,11 +265,14 @@ func TestETagAndLastModified(t *testing.T) {
 }
 
 var feed = `<?xml version="1.0" encoding="UTF-8"?>
-  <feed xmlns="http://www.w3.org/2005/Atom">
+  <feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2010/catalog">
       <title>Catalog in /</title>
       <id>/</id>
       <link rel="start" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
       <link rel="self" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
+      <link rel="http://opds-spec.org/facet" href="/?sort=name" type="application/atom+xml;profile=opds-catalog;kind=navigation" title="Name" xmlns:catalog="http://opds-spec.org/2010/catalog" catalog:facetGroup="Sort By" catalog:activeFacet="true"></link>
+      <link rel="http://opds-spec.org/facet" href="/?sort=date" type="application/atom+xml;profile=opds-catalog;kind=navigation" title="Date" xmlns:catalog="http://opds-spec.org/2010/catalog" catalog:facetGroup="Sort By"></link>
+      <link rel="http://opds-spec.org/facet" href="/?sort=size" type="application/atom+xml;profile=opds-catalog;kind=navigation" title="Size" xmlns:catalog="http://opds-spec.org/2010/catalog" catalog:facetGroup="Sort By"></link>
       <updated>2020-05-25T00:00:00+00:00</updated>
       <entry>
           <title>emptyFolder</title>
@@ -295,12 +298,15 @@ var feed = `<?xml version="1.0" encoding="UTF-8"?>
   </feed>`
 
 var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
-  <feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog">
+  <feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2010/catalog" xmlns:dc="http://purl.org/dc/terms/">
       <title>Catalog in /mybook</title>
       <id>/mybook</id>
       <link rel="start" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
       <link rel="self" href="/mybook" type="application/atom+xml;profile=opds-catalog;kind=acquisition"></link>
       <link rel="up" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
+      <link rel="http://opds-spec.org/facet" href="/mybook?sort=name" type="application/atom+xml;profile=opds-catalog;kind=acquisition" title="Name" xmlns:catalog="http://opds-spec.org/2010/catalog" catalog:facetGroup="Sort By" catalog:activeFacet="true"></link>
+      <link rel="http://opds-spec.org/facet" href="/mybook?sort=date" type="application/atom+xml;profile=opds-catalog;kind=acquisition" title="Date" xmlns:catalog="http://opds-spec.org/2010/catalog" catalog:facetGroup="Sort By"></link>
+      <link rel="http://opds-spec.org/facet" href="/mybook?sort=size" type="application/atom+xml;profile=opds-catalog;kind=acquisition" title="Size" xmlns:catalog="http://opds-spec.org/2010/catalog" catalog:facetGroup="Sort By"></link>
       <updated>2020-05-25T00:00:00+00:00</updated>
       <entry>
           <title>mybook copy.epub</title>
