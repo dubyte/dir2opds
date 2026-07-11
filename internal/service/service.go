@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/dubyte/dir2opds/opds"
-	"golang.org/x/tools/blog/atom"
 )
 
 func init() {
@@ -759,7 +758,7 @@ func extractEpubCover(epubPath string) ([]byte, string, error) {
 	return coverData, contentType, nil
 }
 
-func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
+func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 	feedType := navigationType
 	if catalog.Type == pathTypeDirOfFiles {
 		feedType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
@@ -865,7 +864,7 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 				Build())
 
 		if entry.Author != "" {
-			entryBuilder = entryBuilder.Author(&atom.Person{Name: entry.Author})
+			entryBuilder = entryBuilder.Author(&opds.Person{Name: entry.Author})
 		}
 
 		if s.ExtractMetadata && entry.CoverPath != "" && entry.Type == pathTypeFile {

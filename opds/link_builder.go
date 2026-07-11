@@ -2,7 +2,6 @@ package opds
 
 import (
 	"github.com/lann/builder"
-	"golang.org/x/tools/blog/atom"
 )
 
 type linkBuilder builder.Builder
@@ -31,9 +30,17 @@ func (l linkBuilder) Length(length uint) linkBuilder {
 	return builder.Set(l, "Length", length).(linkBuilder)
 }
 
-func (l linkBuilder) Build() atom.Link {
-	return builder.GetStruct(l).(atom.Link)
+func (l linkBuilder) FacetGroup(group string) linkBuilder {
+	return builder.Set(l, "FacetGroup", group).(linkBuilder)
+}
+
+func (l linkBuilder) ActiveFacet(active string) linkBuilder {
+	return builder.Set(l, "ActiveFacet", active).(linkBuilder)
+}
+
+func (l linkBuilder) Build() Link {
+	return builder.GetStruct(l).(Link)
 }
 
 // LinkBuilder is a fluent immutable builder to build OPDS Links
-var LinkBuilder = builder.Register(linkBuilder{}, atom.Link{}).(linkBuilder)
+var LinkBuilder = builder.Register(linkBuilder{}, Link{}).(linkBuilder)

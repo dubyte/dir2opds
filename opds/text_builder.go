@@ -2,7 +2,6 @@ package opds
 
 import (
 	"github.com/lann/builder"
-	"golang.org/x/tools/blog/atom"
 )
 
 type textBuilder builder.Builder
@@ -15,9 +14,9 @@ func (t textBuilder) Body(body string) textBuilder {
 	return builder.Set(t, "Body", body).(textBuilder)
 }
 
-func (t textBuilder) Build() atom.Text {
-	return builder.GetStruct(t).(atom.Text)
+func (t textBuilder) Build() Text {
+	return builder.GetStruct(t).(Text)
 }
 
 // TextBuilder is a fluent immutable builder to build OPDS texts
-var TextBuilder = builder.Register(textBuilder{}, atom.Text{}).(textBuilder)
+var TextBuilder = builder.Register(textBuilder{}, Text{}).(textBuilder)

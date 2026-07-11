@@ -4,11 +4,10 @@ import (
 	"time"
 
 	"github.com/lann/builder"
-	"golang.org/x/tools/blog/atom"
 )
 
 type AcquisitionFeed struct {
-	*atom.Feed
+	*Feed
 	Dc   string `xml:"xmlns:dc,attr"`
 	Opds string `xml:"xmlns:opds,attr"`
 }
@@ -23,25 +22,25 @@ func (f feedBuilder) ID(id string) feedBuilder {
 	return builder.Set(f, "ID", id).(feedBuilder)
 }
 
-func (f feedBuilder) AddLink(link atom.Link) feedBuilder {
+func (f feedBuilder) AddLink(link Link) feedBuilder {
 	return builder.Append(f, "Link", link).(feedBuilder)
 }
 
 func (f feedBuilder) Updated(updated time.Time) feedBuilder {
-	return builder.Set(f, "Updated", atom.Time(updated)).(feedBuilder)
+	return builder.Set(f, "Updated", Time(updated)).(feedBuilder)
 }
 
-func (f feedBuilder) Author(author atom.Person) feedBuilder {
+func (f feedBuilder) Author(author Person) feedBuilder {
 	return builder.Set(f, "Author", &author).(feedBuilder)
 }
 
-func (f feedBuilder) AddEntry(entry atom.Entry) feedBuilder {
+func (f feedBuilder) AddEntry(entry Entry) feedBuilder {
 	return builder.Append(f, "Entry", &entry).(feedBuilder)
 }
 
-func (f feedBuilder) Build() atom.Feed {
-	return builder.GetStruct(f).(atom.Feed)
+func (f feedBuilder) Build() Feed {
+	return builder.GetStruct(f).(Feed)
 }
 
 // FeedBuilder is a fluent immutable builder to build OPDS Feeds
-var FeedBuilder = builder.Register(feedBuilder{}, atom.Feed{}).(feedBuilder)
+var FeedBuilder = builder.Register(feedBuilder{}, Feed{}).(feedBuilder)
