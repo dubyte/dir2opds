@@ -40,6 +40,14 @@ func (e entryBuilder) Content(content *Text) entryBuilder {
 	return builder.Set(e, "Content", content).(entryBuilder)
 }
 
+func (e entryBuilder) Series(series string) entryBuilder {
+	return builder.Set(e, "DcSeries", series).(entryBuilder)
+}
+
+func (e entryBuilder) SeriesPosition(pos string) entryBuilder {
+	return builder.Set(e, "DcSeriesPosition", pos).(entryBuilder)
+}
+
 func (e entryBuilder) Build() Entry {
 	return builder.GetStruct(e).(Entry)
 }
