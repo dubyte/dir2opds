@@ -86,8 +86,8 @@ func TestSortEntries(t *testing.T) {
 func TestExtractMetadata(t *testing.T) {
 	t.Run("Extract EPUB", func(t *testing.T) {
 		path := filepath.Join("testdata", "mybook", "mybook.epub")
-		title, author, coverPath, description := extractEpubMetadata(path)
-		t.Logf("EPUB Title: %q, Author: %q, CoverPath: %q, Description: %q", title, author, coverPath, description)
+		title, author, coverPath := extractEpubMetadata(path)
+		t.Logf("EPUB Title: %q, Author: %q, CoverPath: %q", title, author, coverPath)
 	})
 
 	t.Run("Parse PDF value", func(t *testing.T) {
