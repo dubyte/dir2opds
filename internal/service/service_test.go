@@ -409,3 +409,52 @@ func TestContentRange(t *testing.T) {
 		assert.Equal(t, http.StatusRequestedRangeNotSatisfiable, resp.StatusCode)
 	})
 }
+
+func TestCrawlableFeed(t *testing.T) {
+	s := service.OPDS{
+		TrustedRoot:      "testdata",
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		PageSize:         2,
+	}
+
+	t.Run("crawlable link appears in paginated feed", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		service.TimeNow = func() time.Time {
+			return time.Date(2020, 05, 25, 00, 00, 00, 0, time.UTC)
+		}
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(body), `rel="http://opds-spec.org/crawlable"`)
+		assert.Contains(t, string(body), `complete=true`)
+	})
+
+	t.Run("complete=true returns all entries unpaginated", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/?complete=true", nil)
+		service.TimeNow = func() time.Time {
+			return time.Date(2020, 05, 25, 00, 00, 00, 0, time.UTC)
+		}
+
+		err := s.Handler(w, req)
+		require.NoError(t, err)
+
+		resp := w.Result()
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		assert.NotContains(t, string(body), `rel="first"`)
+		assert.NotContains(t, string(body), `rel="next"`)
+		assert.NotContains(t, string(body), `rel="http://opds-spec.org/crawlable"`)
+		assert.Contains(t, string(body), "<title>emptyFolder</title>")
+		assert.Contains(t, string(body), "<title>mybook</title>")
+		assert.Contains(t, string(body), "<title>new folder</title>")
+	})
+}

@@ -500,6 +500,11 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		s.SortBy = sortBy
 	}
 
+	complete := req.URL.Query().Get("complete") == "true"
+	if complete {
+		s.NoPagination = true
+	}
+
 	catalog, err := s.Scan(fPath, urlPath, page)
 	if err != nil {
 		slog.Error("error scanning path", "error", err)
@@ -547,7 +552,6 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	var content []byte
 	// it is an acquisition feed
 	if catalog.Type == pathTypeDirOfFiles {
-		navFeed.Opds = "http://opds-spec.org/2010/catalog"
 		navFeed.Opds = "http://opds-spec.org/2010/catalog"
 		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/"}
 		content, err = xml.MarshalIndent(acFeed, "  ", "    ")
@@ -866,6 +870,17 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 				Type(feedType).
 				Build())
 		}
+	}
+
+	if !s.NoPagination && catalog.Total > catalog.PageSize {
+		crawlableQuery := cloneURLValues(req.URL.Query())
+		crawlableQuery.Set("complete", "true")
+		crawlableURL := req.URL.Path + "?" + crawlableQuery.Encode()
+		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+			Rel("http://opds-spec.org/crawlable").
+			Href(s.joinURL(crawlableURL)).
+			Type(feedType).
+			Build())
 	}
 
 	if catalog.Total > 1 {
