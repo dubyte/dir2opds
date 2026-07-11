@@ -760,11 +760,29 @@ func extractEpubCover(epubPath string) ([]byte, string, error) {
 }
 
 func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
+	feedType := navigationType
+	if catalog.Type == pathTypeDirOfFiles {
+		feedType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
+	}
+
 	feedBuilder := opds.FeedBuilder.
 		ID(catalog.ID).
 		Title(catalog.Title).
 		Updated(TimeNow()).
-		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build())
+		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build()).
+		AddLink(opds.LinkBuilder.Rel("self").Href(s.joinURL(req.URL.Path)).Type(feedType).Build())
+
+	if req.URL.Path != "/" && req.URL.Path != "" {
+		parentPath := path.Dir(req.URL.Path)
+		if parentPath == "." {
+			parentPath = "/"
+		}
+		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
+			Rel("up").
+			Href(s.joinURL(parentPath)).
+			Type(navigationType).
+			Build())
+	}
 
 	if s.EnableSearch {
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
@@ -792,11 +810,6 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) atom.Feed {
 		totalPages := (catalog.Total + catalog.PageSize - 1) / catalog.PageSize
 		basePath := req.URL.Path
 		query := req.URL.Query()
-
-		feedType := "application/atom+xml;profile=opds-catalog;kind=navigation"
-		if catalog.Type == pathTypeDirOfFiles {
-			feedType = "application/atom+xml;profile=opds-catalog;kind=acquisition"
-		}
 
 		if catalog.Page > 1 {
 			feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
@@ -918,7 +931,7 @@ func getRel(name string, pathType int) string {
 	}
 
 	// mobi, epub, etc
-	return "http://opds-spec.org/acquisition"
+	return "http://opds-spec.org/acquisition/open-access"
 }
 
 func (s OPDS) getType(name string, pathType int) string {
