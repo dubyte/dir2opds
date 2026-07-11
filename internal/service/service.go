@@ -86,13 +86,14 @@ type Catalog struct {
 }
 
 type CatalogEntry struct {
-	Name      string
-	Type      int
-	ModTime   time.Time
-	Size      int64
-	Title     string
-	Author    string
-	CoverPath string
+	Name        string
+	Type        int
+	ModTime     time.Time
+	Size        int64
+	Title       string
+	Author      string
+	CoverPath   string
+	Description string
 }
 
 type IsDirer interface {
@@ -203,7 +204,7 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 
 		if s.ExtractMetadata && !entry.IsDir() {
 			idx := len(catalog.Entries) - 1
-			title, author, coverPath := extractMetadata(entryPath)
+			title, author, coverPath, description := extractMetadata(entryPath)
 			if title != "" {
 				catalog.Entries[idx].Title = title
 			}
@@ -212,6 +213,9 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 			}
 			if coverPath != "" {
 				catalog.Entries[idx].CoverPath = coverPath
+			}
+			if description != "" {
+				catalog.Entries[idx].Description = description
 			}
 		}
 	}
@@ -249,22 +253,22 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 	return catalog, nil
 }
 
-func extractMetadata(path string) (string, string, string) {
+func extractMetadata(path string) (string, string, string, string) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".epub":
 		return extractEpubMetadata(path)
 	case ".pdf":
 		title, author := extractPdfMetadata(path)
-		return title, author, ""
+		return title, author, "", ""
 	}
-	return "", "", ""
+	return "", "", "", ""
 }
 
-func extractEpubMetadata(path string) (string, string, string) {
+func extractEpubMetadata(path string) (string, string, string, string) {
 	r, err := zip.OpenReader(path)
 	if err != nil {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	defer r.Close()
 
@@ -277,24 +281,25 @@ func extractEpubMetadata(path string) (string, string, string) {
 	}
 
 	if opfPath == "" {
-		return "", "", ""
+		return "", "", "", ""
 	}
 
 	f, err := r.Open(opfPath)
 	if err != nil {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	defer f.Close()
 
 	opfContent, err := io.ReadAll(f)
 	if err != nil {
-		return "", "", ""
+		return "", "", "", ""
 	}
 
 	var opf struct {
 		Metadata struct {
-			Title   string `xml:"title"`
-			Creator string `xml:"creator"`
+			Title       string `xml:"title"`
+			Creator     string `xml:"creator"`
+			Description string `xml:"description"`
 		} `xml:"metadata"`
 		Manifest struct {
 			Items []struct {
@@ -307,17 +312,18 @@ func extractEpubMetadata(path string) (string, string, string) {
 
 	decoder := xml.NewDecoder(bytes.NewReader(opfContent))
 	if err := decoder.Decode(&opf); err != nil {
-		return "", "", ""
+		return "", "", "", ""
 	}
 
 	// If standard unmarshal fails to get values due to namespaces
-	if opf.Metadata.Title == "" || opf.Metadata.Creator == "" {
+	if opf.Metadata.Title == "" || opf.Metadata.Creator == "" || opf.Metadata.Description == "" {
 		decoder = xml.NewDecoder(bytes.NewReader(opfContent))
 		decoder.DefaultSpace = "http://purl.org/dc/elements/1.1/"
 		var opf2 struct {
 			Metadata struct {
-				Title   string `xml:"title"`
-				Creator string `xml:"creator"`
+				Title       string `xml:"title"`
+				Creator     string `xml:"creator"`
+				Description string `xml:"description"`
 			} `xml:"metadata"`
 		}
 		_ = decoder.Decode(&opf2)
@@ -327,12 +333,15 @@ func extractEpubMetadata(path string) (string, string, string) {
 		if opf2.Metadata.Creator != "" {
 			opf.Metadata.Creator = opf2.Metadata.Creator
 		}
+		if opf2.Metadata.Description != "" {
+			opf.Metadata.Description = opf2.Metadata.Description
+		}
 	}
 
 	// Find cover image in manifest
 	coverPath := findEpubCover(r, opf.Manifest.Items, opfPath)
 
-	return opf.Metadata.Title, opf.Metadata.Creator, coverPath
+	return opf.Metadata.Title, opf.Metadata.Creator, coverPath, opf.Metadata.Description
 }
 
 func findEpubCover(r *zip.ReadCloser, items []struct {
@@ -937,6 +946,11 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 
 		if entry.Author != "" {
 			entryBuilder = entryBuilder.Author(&opds.Person{Name: entry.Author})
+		}
+
+		if s.ExtractMetadata && entry.Description != "" {
+			text := opds.TextBuilder.Body(entry.Description).Build()
+			entryBuilder = entryBuilder.Summary(&text)
 		}
 
 		if s.ExtractMetadata && entry.CoverPath != "" && entry.Type == pathTypeFile {
