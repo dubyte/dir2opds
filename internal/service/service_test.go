@@ -269,6 +269,7 @@ var feed = `<?xml version="1.0" encoding="UTF-8"?>
       <title>Catalog in /</title>
       <id>/</id>
       <link rel="start" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
+      <link rel="self" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
       <updated>2020-05-25T00:00:00+00:00</updated>
       <entry>
           <title>emptyFolder</title>
@@ -298,39 +299,41 @@ var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
       <title>Catalog in /mybook</title>
       <id>/mybook</id>
       <link rel="start" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
+      <link rel="self" href="/mybook" type="application/atom+xml;profile=opds-catalog;kind=acquisition"></link>
+      <link rel="up" href="/" type="application/atom+xml;profile=opds-catalog;kind=navigation"></link>
       <updated>2020-05-25T00:00:00+00:00</updated>
       <entry>
           <title>mybook copy.epub</title>
           <id>/mybookmybook copy.epub</id>
-          <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook%20copy.epub" type="application/epub+zip" title="mybook copy.epub"></link>
+          <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook%20copy.epub" type="application/epub+zip" title="mybook copy.epub"></link>
           <published>2020-05-25T00:00:00+00:00</published>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook copy.txt</title>
           <id>/mybookmybook copy.txt</id>
-          <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook%20copy.txt" type="text/plain; charset=utf-8" title="mybook copy.txt"></link>
+          <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook%20copy.txt" type="text/plain; charset=utf-8" title="mybook copy.txt"></link>
           <published>2020-05-25T00:00:00+00:00</published>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook.epub</title>
           <id>/mybookmybook.epub</id>
-          <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook.epub" type="application/epub+zip" title="mybook.epub"></link>
+          <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook.epub" type="application/epub+zip" title="mybook.epub"></link>
           <published>2020-05-25T00:00:00+00:00</published>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook.pdf</title>
           <id>/mybookmybook.pdf</id>
-          <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook.pdf" type="application/pdf" title="mybook.pdf"></link>
+          <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook.pdf" type="application/pdf" title="mybook.pdf"></link>
           <published>2020-05-25T00:00:00+00:00</published>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
           <title>mybook.txt</title>
           <id>/mybookmybook.txt</id>
-          <link rel="http://opds-spec.org/acquisition" href="/mybook/mybook.txt" type="text/plain; charset=utf-8" title="mybook.txt"></link>
+          <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook.txt" type="text/plain; charset=utf-8" title="mybook.txt"></link>
           <published>2020-05-25T00:00:00+00:00</published>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
