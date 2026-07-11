@@ -90,10 +90,10 @@ func TestExtractMetadata(t *testing.T) {
 		t.Logf("EPUB Title: %q, Author: %q, CoverPath: %q, Description: %q, Series: %q, SeriesIndex: %q, Subjects: %v", title, author, coverPath, description, series, seriesIndex, subjects)
 	})
 
-	t.Run("Parse PDF value", func(t *testing.T) {
-		line := "/Title (The Great Gatsby) /Author (F. Scott Fitzgerald)"
-		assert.Equal(t, "The Great Gatsby", parsePdfValue(line, "/Title"))
-		assert.Equal(t, "F. Scott Fitzgerald", parsePdfValue(line, "/Author"))
+	t.Run("Extract PDF", func(t *testing.T) {
+		path := filepath.Join("testdata", "mybook", "mybook.pdf")
+		title, author, description, subjects := extractPdfMetadata(path)
+		t.Logf("PDF Title: %q, Author: %q, Description: %q, Subjects: %v", title, author, description, subjects)
 	})
 }
 

@@ -5,7 +5,6 @@ package service
 
 import (
 	"archive/zip"
-	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
@@ -26,6 +25,7 @@ import (
 	"time"
 
 	"github.com/dubyte/dir2opds/opds"
+	"rsc.io/pdf"
 )
 
 func init() {
@@ -271,8 +271,8 @@ func extractMetadata(path string) (string, string, string, string, string, strin
 	case ".epub":
 		return extractEpubMetadata(path)
 	case ".pdf":
-		title, author := extractPdfMetadata(path)
-		return title, author, "", "", "", "", nil
+		title, author, description, subjects := extractPdfMetadata(path)
+		return title, author, "", description, "", "", subjects
 	}
 	return "", "", "", "", "", "", nil
 }
@@ -437,46 +437,31 @@ func findEpubCover(r *zip.ReadCloser, items []struct {
 	return ""
 }
 
-func extractPdfMetadata(path string) (string, string) {
-	f, err := os.Open(path)
+func extractPdfMetadata(path string) (string, string, string, []string) {
+	reader, err := pdf.Open(path)
 	if err != nil {
-		return "", ""
+		return "", "", "", nil
 	}
-	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	var title, author string
-	// Only scan first 4KB to keep it fast
-	maxLines := 100
-	for i := 0; i < maxLines && scanner.Scan(); i++ {
-		line := scanner.Text()
-		if title == "" && strings.Contains(line, "/Title") {
-			title = parsePdfValue(line, "/Title")
-		}
-		if author == "" && strings.Contains(line, "/Author") {
-			author = parsePdfValue(line, "/Author")
-		}
-		if title != "" && author != "" {
-			break
-		}
+	info := reader.Trailer().Key("Info")
+	if info.IsNull() {
+		return "", "", "", nil
 	}
-	return title, author
-}
 
-func parsePdfValue(line, key string) string {
-	idx := strings.Index(line, key)
-	if idx == -1 {
-		return ""
+	title := info.Key("Title").Text()
+	author := info.Key("Author").Text()
+	description := info.Key("Subject").Text()
+
+	var subjects []string
+	if kw := info.Key("Keywords").Text(); kw != "" {
+		for _, s := range strings.Split(kw, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				subjects = append(subjects, s)
+			}
+		}
 	}
-	start := strings.Index(line[idx:], "(")
-	if start == -1 {
-		return ""
-	}
-	end := strings.Index(line[idx+start:], ")")
-	if end == -1 {
-		return ""
-	}
-	return line[idx+start+1 : idx+start+end]
+
+	return title, author, description, subjects
 }
 
 func (s OPDS) sortEntries(entries []CatalogEntry) {
