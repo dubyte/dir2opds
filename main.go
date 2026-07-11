@@ -30,25 +30,28 @@ import (
 )
 
 var (
-	port         = flag.String("port", "8080", "The server will listen in this port.")
-	host         = flag.String("host", "0.0.0.0", "The server will listen in this host.")
-	dirRoot      = flag.String("dir", "./books", "A directory with books.")
-	debug        = flag.Bool("debug", false, "If it is set it will log the requests.")
-	calibre      = flag.Bool("calibre", false, "Hide files stored by calibre.")
-	hideDotFiles = flag.Bool("hide-dot-files", false, "Hide files that starts with dot.")
-	noCache      = flag.Bool("no-cache", false, "adds reponse headers to avoid client from caching.")
-	enableCache  = flag.Bool("enable-cache", false, "Enable ETag and Last-Modified headers for conditional requests.")
-	gzip         = flag.Bool("gzip", false, "Enable gzip compression for responses.")
-	sortBy       = flag.String("sort", "name", "Sort entries by: name, date, size.")
-	showCovers   = flag.Bool("show-covers", false, "Show cover.jpg or folder.jpg as catalog cover.")
-	mimeMapStr   = flag.String("mime-map", "", "Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')")
-	searchEnable = flag.Bool("search", false, "Enable basic filename search.")
-	extractMeta  = flag.Bool("extract-metadata", false, "Extract metadata (title, author, cover) from EPUB and PDF files.")
-	enableHTML   = flag.Bool("enable-html", false, "Enable web-friendly HTML view for browsers.")
-	baseURL      = flag.String("url", "", "The base URL used for absolute links in the feed (e.g., https://opds.example.com).")
-	logFormat    = flag.String("log-format", "json", "Log format: json, text.")
-	pageSize     = flag.Int("page-size", 50, "Number of entries per page (0 for default, max 200).")
-	noPagination = flag.Bool("no-pagination", false, "Disable pagination and show all entries in a single feed.")
+	port             = flag.String("port", "8080", "The server will listen in this port.")
+	host             = flag.String("host", "0.0.0.0", "The server will listen in this host.")
+	dirRoot          = flag.String("dir", "./books", "A directory with books.")
+	debug            = flag.Bool("debug", false, "If it is set it will log the requests.")
+	hideCalibreFiles = flag.Bool("hide-calibre-files", true, "Hide files stored by calibre.")
+	hideDotFiles     = flag.Bool("hide-dot-files", true, "Hide files that starts with dot.")
+	noCache          = flag.Bool("no-cache", false, "adds reponse headers to avoid client from caching.")
+	enableCache      = flag.Bool("enable-cache", false, "Enable ETag and Last-Modified headers for conditional requests.")
+	gzip             = flag.Bool("gzip", false, "Enable gzip compression for responses.")
+	sortBy           = flag.String("sort", "name", "Sort entries by: name, date, size.")
+	showCovers       = flag.Bool("show-covers", true, "Show cover.jpg or folder.jpg as catalog cover.")
+	mimeMapStr       = flag.String("mime-map", "", "Custom mime types (e.g., '.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook')")
+	searchEnable     = flag.Bool("search", false, "Enable basic filename search.")
+	extractMeta      = flag.Bool("extract-metadata", true, "Extract metadata (title, author, cover) from EPUB and PDF files.")
+	enableHTML       = flag.Bool("enable-html", false, "Enable web-friendly HTML view for browsers.")
+	baseURL          = flag.String("url", "", "The base URL used for absolute links in the feed (e.g., https://opds.example.com).")
+	logFormat        = flag.String("log-format", "json", "Log format: json, text.")
+	pageSize         = flag.Int("page-size", 50, "Number of entries per page (0 for default, max 200).")
+	noPagination     = flag.Bool("no-pagination", false, "Disable pagination and show all entries in a single feed.")
+
+	// Will be deprecated in a future version; use -hide-calibre-files instead
+	calibre = flag.Bool("calibre", true, "Hide files stored by calibre. Will be deprecated; use -hide-calibre-files.")
 )
 
 func main() {
@@ -87,9 +90,28 @@ func main() {
 
 	fmt.Println(startValues())
 
+	hideCalibre := *hideCalibreFiles
+	calibreExplicit := false
+	hideCalibreExplicit := false
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "calibre":
+			calibreExplicit = true
+		case "hide-calibre-files":
+			hideCalibreExplicit = true
+		}
+	})
+
+	if hideCalibreExplicit {
+		hideCalibre = *hideCalibreFiles
+	} else if calibreExplicit {
+		fmt.Fprintf(os.Stderr, "Warning: -calibre will be deprecated in a future version, use -hide-calibre-files instead\n")
+		hideCalibre = *calibre
+	}
+
 	s := service.OPDS{
 		TrustedRoot:      absolutePath,
-		HideCalibreFiles: *calibre,
+		HideCalibreFiles: hideCalibre,
 		HideDotFiles:     *hideDotFiles,
 		NoCache:          *noCache,
 		EnableCache:      *enableCache,

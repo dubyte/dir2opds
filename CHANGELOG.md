@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Default flags for OPDS compliance** — Changed defaults for `-hide-calibre-files` (formerly `-calibre`), `-hide-dot-files`, `-extract-metadata`, and `-show-covers` from `false` to `true`. This produces correct OPDS feeds out of the box without manual configuration.
+- **Renamed `-calibre` to `-hide-calibre-files`** — The old `-calibre` flag is deprecated but still works for backward compatibility.
+
 ## [1.9.0] - 2026-04-27
 
 ### Added
