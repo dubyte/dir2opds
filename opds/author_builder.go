@@ -2,7 +2,6 @@ package opds
 
 import (
 	"github.com/lann/builder"
-	"golang.org/x/tools/blog/atom"
 )
 
 type authorBuilder builder.Builder
@@ -23,9 +22,9 @@ func (a authorBuilder) InnerXML(inner string) authorBuilder {
 	return builder.Set(a, "InnerXML", inner).(authorBuilder)
 }
 
-func (a authorBuilder) Build() atom.Person {
-	return builder.GetStruct(a).(atom.Person)
+func (a authorBuilder) Build() Person {
+	return builder.GetStruct(a).(Person)
 }
 
 // AuthorBuilder is a fluent immutable builder to build OPDS Authors
-var AuthorBuilder = builder.Register(authorBuilder{}, atom.Person{}).(authorBuilder)
+var AuthorBuilder = builder.Register(authorBuilder{}, Person{}).(authorBuilder)

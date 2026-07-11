@@ -55,7 +55,7 @@ type authorBuilder builder.Builder    // Unexported, use AuthorBuilder singleton
 type textBuilder builder.Builder     // Unexported, use TextBuilder singleton
 
 type AcquisitionFeed struct {
-    *atom.Feed
+    *Feed
     Dc   string `xml:"xmlns:dc,attr"`
     Opds string `xml:"xmlns:opds,attr"`
 }
@@ -80,9 +80,9 @@ type AcquisitionFeed struct {
 ### Singleton Pattern
 Each builder exports a singleton instance:
 ```go
-var FeedBuilder = builder.Register(feedBuilder{}, atom.Feed{}).(feedBuilder)
-var EntryBuilder = builder.Register(entryBuilder{}, atom.Entry{}).(entryBuilder)
-var LinkBuilder = builder.Register(linkBuilder{}, atom.Link{}).(linkBuilder)
+var FeedBuilder = builder.Register(feedBuilder{}, Feed{}).(feedBuilder)
+var EntryBuilder = builder.Register(entryBuilder{}, Entry{}).(entryBuilder)
+var LinkBuilder = builder.Register(linkBuilder{}, Link{}).(linkBuilder)
 ```
 
 ## ANTI-PATTERNS

@@ -12,11 +12,11 @@
 // builder instance, allowing method chaining. Always call Build() at the end of the chain.
 //
 // Available builders:
-//   - FeedBuilder: creates atom.Feed structures for navigation or acquisition feeds
-//   - EntryBuilder: creates atom.Entry structures for individual books or folders
-//   - LinkBuilder: creates atom.Link structures with relations like start, subsection, acquisition, search
-//   - AuthorBuilder: creates atom.Person structures for book authors
-//   - TextBuilder: creates atom.Text structures for summaries and descriptions
+//   - FeedBuilder: creates Feed structures for navigation or acquisition feeds
+//   - EntryBuilder: creates Entry structures for individual books or folders
+//   - LinkBuilder: creates Link structures with relations like start, subsection, acquisition, search
+//   - AuthorBuilder: creates Person structures for book authors
+//   - TextBuilder: creates Text structures for summaries and descriptions
 //
 // # Example
 //
