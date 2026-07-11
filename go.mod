@@ -5,6 +5,7 @@ go 1.25.3
 require (
 	github.com/lann/builder v0.0.0-20150808151131-f22ce00fd939
 	github.com/stretchr/testify v1.7.0
+	rsc.io/pdf v0.1.1
 )
 
 require (
