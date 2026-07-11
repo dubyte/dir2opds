@@ -48,6 +48,10 @@ func (e entryBuilder) SeriesPosition(pos string) entryBuilder {
 	return builder.Set(e, "DcSeriesPosition", pos).(entryBuilder)
 }
 
+func (e entryBuilder) AddCategory(category Category) entryBuilder {
+	return builder.Append(e, "Categories", category).(entryBuilder)
+}
+
 func (e entryBuilder) Build() Entry {
 	return builder.GetStruct(e).(Entry)
 }

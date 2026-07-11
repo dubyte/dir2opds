@@ -25,18 +25,24 @@ type Feed struct {
 	Opds    string   `xml:"xmlns:opds,attr,omitempty"`
 }
 
-// Entry is an Atom entry.
 type Entry struct {
-	Title            string  `xml:"title"`
-	ID               string  `xml:"id"`
-	Link             []Link  `xml:"link"`
-	Published        TimeStr `xml:"published"`
-	Updated          TimeStr `xml:"updated"`
-	Author           *Person `xml:"author"`
-	Summary          *Text   `xml:"summary"`
-	Content          *Text   `xml:"content"`
-	DcSeries         string  `xml:"dc:series,omitempty"`
-	DcSeriesPosition string  `xml:"dc:seriesPosition,omitempty"`
+	Title            string     `xml:"title"`
+	ID               string     `xml:"id"`
+	Link             []Link     `xml:"link"`
+	Published        TimeStr    `xml:"published"`
+	Updated          TimeStr    `xml:"updated"`
+	Author           *Person    `xml:"author"`
+	Summary          *Text      `xml:"summary"`
+	Content          *Text      `xml:"content"`
+	DcSeries         string     `xml:"dc:series,omitempty"`
+	DcSeriesPosition string     `xml:"dc:seriesPosition,omitempty"`
+	Categories       []Category `xml:"category"`
+}
+
+type Category struct {
+	Term   string `xml:"term,attr"`
+	Label  string `xml:"label,attr,omitempty"`
+	Scheme string `xml:"scheme,attr,omitempty"`
 }
 
 // Link is an Atom link with optional OPDS 1.2 facet attributes.
