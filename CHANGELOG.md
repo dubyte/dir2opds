@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.10.1] - 2026-07-11
-
-### Added
-
-- **EPUB description extraction** — `<dc:description>` metadata is now extracted and emitted as `<atom:summary>` in acquisition feeds, enabling richer book previews in OPDS clients.
-- **EPUB series metadata extraction** — `calibre:series` and `calibre:series_index` are extracted and emitted as `<dc:series>` and `<dc:seriesPosition>`, enabling reading order views in supporting clients.
-- **EPUB subject/category extraction** — `<dc:subject>` tags are extracted and emitted as `<atom:category>` elements, enabling genre/subject browsing.
-
 ## [1.10.0] - 2026-07-11
 
 ### Added
