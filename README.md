@@ -43,9 +43,9 @@ dir2opds is ideal for anyone who wants a **self-hosted digital library** without
 - **Self-hosted OPDS ebook server** — Run your own digital library at home or on a VPS
 - **OPDS 1.1 compliant** — Works with standard ebook readers and OPDS clients
 - **No database** — Reads directly from your filesystem; no Calibre or extra setup
-- **Flexible layout** — Organize by folders; optional metadata from EPUB/PDF
+- **Flexible layout** — Organize by folders; metadata from EPUB/PDF
 - **Search** — Optional filename search (OpenSearch)
-- **Covers** — Optional `cover.jpg` / `folder.jpg` as catalog covers, or extract covers from EPUB files
+- **Covers** — `cover.jpg` / `folder.jpg` as catalog covers, or extract covers from EPUB files
 - **Web-friendly** — Optional HTML interface for browsing your collection via a web browser
 - **Pagination** — Configurable page size for large catalogs
 - **Caching** — ETag/Last-Modified for conditional requests, gzip compression
@@ -102,14 +102,14 @@ dir2opds -dir /path/to/books -port 8080
 
 | Flag | Description |
 |------|-------------|
-| `-calibre` | Hide files stored by Calibre |
+| `-hide-calibre-files` | Hide files stored by Calibre (default: `true`). The old `-calibre` flag still works but will show a deprecation warning. |
 | `-debug` | Log requests |
 | `-dir` | Directory with books (default: `./books`) |
 | `-enable-cache` | Enable ETag/Last-Modified headers for conditional requests (bandwidth optimization) |
 | `-enable-html` | Enable web-friendly HTML view for browsers |
-| `-extract-metadata` | Extract title/author from EPUB and PDF, and covers from EPUB |
+| `-extract-metadata` | Extract title/author from EPUB and PDF, and covers from EPUB (default: `true`) |
 | `-gzip` | Enable gzip compression for responses (reduces bandwidth) |
-| `-hide-dot-files` | Hide files whose names start with a dot |
+| `-hide-dot-files` | Hide files whose names start with a dot (default: `true`) |
 | `-host` | Listen address (default: `0.0.0.0`) |
 | `-log-format` | Log format: `json` (default), `text` |
 | `-mime-map` | Custom MIME types, e.g. `.mobi:application/x-mobipocket-ebook,.azw3:application/vnd.amazon.ebook` |
@@ -118,28 +118,22 @@ dir2opds -dir /path/to/books -port 8080
 | `-page-size` | Number of entries per page (default: `50`, max: `200`) |
 | `-port` | Listen port (default: `8080`) |
 | `-search` | Enable basic filename search |
-| `-show-covers` | Use `cover.jpg` or `folder.jpg` as catalog covers |
+| `-show-covers` | Use `cover.jpg` or `folder.jpg` as catalog covers (default: `true`) |
 | `-sort` | Sort entries: `name`, `date`, or `size` (default: `name`) |
 | `-url` | The base URL used for absolute links in the feed (e.g., `https://opds.example.com`) |
 
-### Recommended Configuration
+### Legacy Behavior (Pre-v2.0.0)
 
-For the best experience, use these flags:
+If you need the old behavior where all files are shown and no metadata is extracted:
 
 ```bash
-dir2opds -dir /path/to/books -extract-metadata -enable-cache -gzip -enable-html
+dir2opds -dir /path/to/books -hide-calibre-files=false -hide-dot-files=false -extract-metadata=false -show-covers=false
 ```
-
-This enables:
-- **Metadata extraction** — Shows book titles and authors instead of filenames, plus cover thumbnails
-- **Caching** — Reduces bandwidth with ETag/Last-Modified headers
-- **Gzip compression** — Further reduces bandwidth for large catalogs
-- **Web-friendly UI** — Provides a modern HTML interface when browsing via a web browser
 
 For public servers, also set the base URL:
 
 ```bash
-dir2opds -dir /path/to/books -extract-metadata -enable-cache -gzip -url https://opds.example.com
+dir2opds -dir /path/to/books -url https://opds.example.com
 ```
 
 ---
