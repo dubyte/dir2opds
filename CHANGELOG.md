@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-07-11
+
+### Added
+
+- **OPDS 1.2 self links** — All feeds now include `rel="self"` links pointing to their canonical URL.
+- **OPDS 1.2 up links** — Subfolder feeds include `rel="up"` links for breadcrumb navigation.
+- **OPDS 1.2 open-access relation** — Book acquisition links use `http://opds-spec.org/acquisition/open-access` instead of the generic `acquisition` relation, enabling "free" badges in modern clients.
+- **OPDS 1.2 facet links** — Feeds include `rel="http://opds-spec.org/facet"` links for name/date/size sorting with `opds:facetGroup="Sort By"` and `opds:activeFacet="true"` attributes.
+- **OPDS 1.2 crawlable feed** — `?complete=true` query parameter returns all entries in a single unpaginated feed. Paginated feeds include `rel="http://opds-spec.org/crawlable"` links for aggregators and search engines.
+- **Custom OPDS/Atom structs** — Replaced `golang.org/x/tools/blog/atom` with native OPDS-aware structs supporting custom XML attributes.
+
 ### Changed
 
 - **Default flags for OPDS compliance** — Changed defaults for `-hide-calibre-files` (formerly `-calibre`), `-hide-dot-files`, `-extract-metadata`, and `-show-covers` from `false` to `true`. This produces correct OPDS feeds out of the box without manual configuration.
