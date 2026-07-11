@@ -27,14 +27,16 @@ type Feed struct {
 
 // Entry is an Atom entry.
 type Entry struct {
-	Title     string  `xml:"title"`
-	ID        string  `xml:"id"`
-	Link      []Link  `xml:"link"`
-	Published TimeStr `xml:"published"`
-	Updated   TimeStr `xml:"updated"`
-	Author    *Person `xml:"author"`
-	Summary   *Text   `xml:"summary"`
-	Content   *Text   `xml:"content"`
+	Title            string  `xml:"title"`
+	ID               string  `xml:"id"`
+	Link             []Link  `xml:"link"`
+	Published        TimeStr `xml:"published"`
+	Updated          TimeStr `xml:"updated"`
+	Author           *Person `xml:"author"`
+	Summary          *Text   `xml:"summary"`
+	Content          *Text   `xml:"content"`
+	DcSeries         string  `xml:"dc:series,omitempty"`
+	DcSeriesPosition string  `xml:"dc:seriesPosition,omitempty"`
 }
 
 // Link is an Atom link with optional OPDS 1.2 facet attributes.
