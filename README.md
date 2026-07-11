@@ -57,10 +57,10 @@ dir2opds is ideal for anyone who wants a **self-hosted digital library** without
 
 ## Quick start
 
-Using Docker (replace `v1.10.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
+Using Docker (replace `v1.10.1` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
 
 ```bash
-docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.10.0
+docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.10.1
 ```
 
 ```
