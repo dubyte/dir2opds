@@ -57,10 +57,10 @@ dir2opds is ideal for anyone who wants a **self-hosted digital library** without
 
 ## Quick start
 
-Using Docker (replace `v1.10.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
+Using Docker (replace `v1.10.1` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
 
 ```bash
-docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.10.0
+docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.10.1
 ```
 
 ```
@@ -107,7 +107,7 @@ dir2opds -dir /path/to/books -port 8080
 | `-dir` | Directory with books (default: `./books`) |
 | `-enable-cache` | Enable ETag/Last-Modified headers for conditional requests (bandwidth optimization) |
 | `-enable-html` | Enable web-friendly HTML view for browsers |
-| `-extract-metadata` | Extract title/author from EPUB and PDF, and covers from EPUB (default: `true`) |
+| `-extract-metadata` | Extract title/author/description/series/subjects from EPUB, title/author from PDF, and covers from EPUB (default: `true`) |
 | `-gzip` | Enable gzip compression for responses (reduces bandwidth) |
 | `-hide-dot-files` | Hide files whose names start with a dot (default: `true`) |
 | `-host` | Listen address (default: `0.0.0.0`) |
