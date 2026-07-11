@@ -96,6 +96,7 @@ type CatalogEntry struct {
 	Description string
 	Series      string
 	SeriesIndex string
+	Subjects    []string
 }
 
 type IsDirer interface {
@@ -206,7 +207,7 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 
 		if s.ExtractMetadata && !entry.IsDir() {
 			idx := len(catalog.Entries) - 1
-			title, author, coverPath, description, series, seriesIndex := extractMetadata(entryPath)
+			title, author, coverPath, description, series, seriesIndex, subjects := extractMetadata(entryPath)
 			if title != "" {
 				catalog.Entries[idx].Title = title
 			}
@@ -224,6 +225,9 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 			}
 			if seriesIndex != "" {
 				catalog.Entries[idx].SeriesIndex = seriesIndex
+			}
+			if len(subjects) > 0 {
+				catalog.Entries[idx].Subjects = subjects
 			}
 		}
 	}
@@ -261,22 +265,22 @@ func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
 	return catalog, nil
 }
 
-func extractMetadata(path string) (string, string, string, string, string, string) {
+func extractMetadata(path string) (string, string, string, string, string, string, []string) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".epub":
 		return extractEpubMetadata(path)
 	case ".pdf":
 		title, author := extractPdfMetadata(path)
-		return title, author, "", "", "", ""
+		return title, author, "", "", "", "", nil
 	}
-	return "", "", "", "", "", ""
+	return "", "", "", "", "", "", nil
 }
 
-func extractEpubMetadata(path string) (string, string, string, string, string, string) {
+func extractEpubMetadata(path string) (string, string, string, string, string, string, []string) {
 	r, err := zip.OpenReader(path)
 	if err != nil {
-		return "", "", "", "", "", ""
+		return "", "", "", "", "", "", nil
 	}
 	defer r.Close()
 
@@ -289,25 +293,26 @@ func extractEpubMetadata(path string) (string, string, string, string, string, s
 	}
 
 	if opfPath == "" {
-		return "", "", "", "", "", ""
+		return "", "", "", "", "", "", nil
 	}
 
 	f, err := r.Open(opfPath)
 	if err != nil {
-		return "", "", "", "", "", ""
+		return "", "", "", "", "", "", nil
 	}
 	defer f.Close()
 
 	opfContent, err := io.ReadAll(f)
 	if err != nil {
-		return "", "", "", "", "", ""
+		return "", "", "", "", "", "", nil
 	}
 
 	var opf struct {
 		Metadata struct {
-			Title       string `xml:"title"`
-			Creator     string `xml:"creator"`
-			Description string `xml:"description"`
+			Title       string   `xml:"title"`
+			Creator     string   `xml:"creator"`
+			Description string   `xml:"description"`
+			Subject     []string `xml:"subject"`
 			Meta        []struct {
 				Name    string `xml:"name,attr"`
 				Content string `xml:"content,attr"`
@@ -324,7 +329,7 @@ func extractEpubMetadata(path string) (string, string, string, string, string, s
 
 	decoder := xml.NewDecoder(bytes.NewReader(opfContent))
 	if err := decoder.Decode(&opf); err != nil {
-		return "", "", "", "", "", ""
+		return "", "", "", "", "", "", nil
 	}
 
 	// If standard unmarshal fails to get values due to namespaces
@@ -333,9 +338,10 @@ func extractEpubMetadata(path string) (string, string, string, string, string, s
 		decoder.DefaultSpace = "http://purl.org/dc/elements/1.1/"
 		var opf2 struct {
 			Metadata struct {
-				Title       string `xml:"title"`
-				Creator     string `xml:"creator"`
-				Description string `xml:"description"`
+				Title       string   `xml:"title"`
+				Creator     string   `xml:"creator"`
+				Description string   `xml:"description"`
+				Subject     []string `xml:"subject"`
 				Meta        []struct {
 					Name    string `xml:"name,attr"`
 					Content string `xml:"content,attr"`
@@ -351,6 +357,9 @@ func extractEpubMetadata(path string) (string, string, string, string, string, s
 		}
 		if opf2.Metadata.Description != "" {
 			opf.Metadata.Description = opf2.Metadata.Description
+		}
+		if len(opf2.Metadata.Subject) > 0 && len(opf.Metadata.Subject) == 0 {
+			opf.Metadata.Subject = opf2.Metadata.Subject
 		}
 		if len(opf2.Metadata.Meta) > 0 && len(opf.Metadata.Meta) == 0 {
 			opf.Metadata.Meta = opf2.Metadata.Meta
@@ -370,7 +379,7 @@ func extractEpubMetadata(path string) (string, string, string, string, string, s
 	// Find cover image in manifest
 	coverPath := findEpubCover(r, opf.Manifest.Items, opfPath)
 
-	return opf.Metadata.Title, opf.Metadata.Creator, coverPath, opf.Metadata.Description, series, seriesIndex
+	return opf.Metadata.Title, opf.Metadata.Creator, coverPath, opf.Metadata.Description, series, seriesIndex, opf.Metadata.Subject
 }
 
 func findEpubCover(r *zip.ReadCloser, items []struct {
@@ -1006,6 +1015,13 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 				Href(coverURL).
 				Type(contentType).
 				Build())
+		}
+
+		for _, subject := range entry.Subjects {
+			entryBuilder = entryBuilder.AddCategory(opds.Category{
+				Term:  subject,
+				Label: subject,
+			})
 		}
 
 		feedBuilder = feedBuilder.AddEntry(entryBuilder.Build())
