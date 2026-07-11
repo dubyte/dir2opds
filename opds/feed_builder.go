@@ -8,8 +8,7 @@ import (
 
 type AcquisitionFeed struct {
 	*Feed
-	Dc   string `xml:"xmlns:dc,attr"`
-	Opds string `xml:"xmlns:opds,attr"`
+	Dc string `xml:"xmlns:dc,attr"`
 }
 
 type feedBuilder builder.Builder
