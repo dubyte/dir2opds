@@ -28,8 +28,10 @@ type OPDS struct {
     MimeMap          map[string]string
     EnableSearch     bool
     ExtractMetadata  bool
+    EnableHTML       bool
     BaseURL          string
     PageSize         int
+    NoPagination     bool
 }
 
 type Catalog struct {

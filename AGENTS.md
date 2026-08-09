@@ -66,8 +66,6 @@ import (
     "log/slog"
     
     "github.com/lann/builder"
-    "golang.org/x/tools/blog/atom"
-    
     "github.com/dubyte/dir2opds/opds"
 )
 ```
@@ -159,6 +157,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 │       ├── gzip_test.go       # Gzip middleware tests
 │       ├── health.go          # Health check endpoint
 │       ├── health_test.go     # Health endpoint tests
+│       ├── html.go            # HTML browser interface
 │       └── testdata/          # Test fixtures
 ├── opds/                      # OPDS/Atom XML builders
 │   ├── feed_builder.go        # Feed builder (immutable)
@@ -175,7 +174,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ## Key Dependencies
 - `github.com/lann/builder` - Immutable builders
 - `github.com/stretchr/testify` - Testing utilities
-- `golang.org/x/tools/blog/atom` - Atom feed structs
+- `rsc.io/pdf` - PDF metadata extraction
 
 ## Architecture Notes
 
