@@ -39,7 +39,7 @@
 //   - "start": root catalog link
 //   - "search": link to OpenSearch description document
 //   - "subsection": link to a sub-catalog (navigation)
-//   - "http://opds-spec.org/acquisition": direct download link for a book
+//   - "http://opds-spec.org/acquisition/open-access": direct download link for a book
 //   - "http://opds-spec.org/image": cover image link
 //   - "http://opds-spec.org/image/thumbnail": thumbnail image link
 //   - "first", "previous", "next", "last": pagination links

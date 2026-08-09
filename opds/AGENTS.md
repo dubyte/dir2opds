@@ -54,10 +54,11 @@ type linkBuilder builder.Builder      // Unexported, use LinkBuilder singleton
 type authorBuilder builder.Builder    // Unexported, use AuthorBuilder singleton
 type textBuilder builder.Builder     // Unexported, use TextBuilder singleton
 
+// AcquisitionFeed embeds *Feed and adds the DC namespace.
+// Note: the Opds namespace attribute is on the embedded Feed struct.
 type AcquisitionFeed struct {
     *Feed
-    Dc   string `xml:"xmlns:dc,attr"`
-    Opds string `xml:"xmlns:opds,attr"`
+    Dc string `xml:"xmlns:dc,attr"`
 }
 ```
 
@@ -67,7 +68,7 @@ type AcquisitionFeed struct {
 - `start` - Link to root catalog
 - `search` - Link to OpenSearch description
 - `subsection` - Link to sub-catalog (navigation)
-- `http://opds-spec.org/acquisition` - Download link
+- `http://opds-spec.org/acquisition/open-access` - Download link
 - `http://opds-spec.org/image` - Cover image
 - `http://opds-spec.org/image/thumbnail` - Thumbnail
 - `first`, `previous`, `next`, `last` - Pagination

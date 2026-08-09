@@ -106,7 +106,7 @@ Installation scripts and configs for FreeBSD, Illumos, and Linux are in the [fil
 
 ## Build from source
 
-Requires [Go 1.21+](https://go.dev/doc/install). Build for multiple platforms:
+Requires [Go 1.25.3+](https://go.dev/doc/install). Build for multiple platforms:
 
 ```bash
 make build-all
