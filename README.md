@@ -41,7 +41,7 @@ dir2opds is ideal for anyone who wants a **self-hosted digital library** without
 ## Features
 
 - **Self-hosted OPDS ebook server** — Run your own digital library at home or on a VPS
-- **OPDS 1.1 compliant** — Works with standard ebook readers and OPDS clients
+- **OPDS 1.2 compliant** — Works with standard ebook readers and OPDS clients
 - **No database** — Reads directly from your filesystem; no Calibre or extra setup
 - **Flexible layout** — Organize by folders; metadata from EPUB/PDF
 - **Search** — Optional filename search (OpenSearch)

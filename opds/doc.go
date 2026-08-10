@@ -1,4 +1,4 @@
-// Package opds provides fluent immutable builders for generating OPDS 1.1 (Open Publication Distribution System)
+// Package opds provides fluent immutable builders for generating OPDS 1.2 (Open Publication Distribution System)
 // feeds in XML format. It is used by dir2opds, a self-hosted ebook server and digital library solution,
 // to create navigation and acquisition feeds for ebook readers and OPDS clients.
 //

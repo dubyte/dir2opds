@@ -1,6 +1,6 @@
 # opds - OPDS/Atom XML Builders
 
-Immutable builders for OPDS 1.1 feed generation using `github.com/lann/builder`.
+Immutable builders for OPDS 1.2 feed generation using `github.com/lann/builder`.
 
 ## WHERE TO LOOK
 
