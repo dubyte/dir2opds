@@ -1,6 +1,6 @@
 // package service provides a http handler that reads the path in the request.url and returns
-// an xml document that follows the OPDS 1.1 standard
-// https://specs.opds.io/opds-1.1.html
+// an xml document that follows the OPDS 1.2 standard
+// https://specs.opds.io/opds-1.2.html
 package service
 
 import (
