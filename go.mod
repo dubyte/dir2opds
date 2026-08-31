@@ -5,6 +5,7 @@ go 1.25.3
 require (
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/text v0.41.0
 	rsc.io/pdf v0.1.1
 )
 

@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/dubyte/dir2opds/opds"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding"
 	"rsc.io/pdf"
 )
 
@@ -270,11 +272,74 @@ func extractMetadata(path string) (string, string, string, string, string, strin
 	switch ext {
 	case ".epub":
 		return extractEpubMetadata(path)
+	case ".fb2":
+		return extractFb2Metadata(path)
 	case ".pdf":
 		title, author, description, subjects := extractPdfMetadata(path)
 		return title, author, "", description, "", "", subjects
 	}
 	return "", "", "", "", "", "", nil
+}
+
+func charsetReader(c string, i io.Reader) (r io.Reader, e error) {
+	var decoder *encoding.Decoder
+
+	switch strings.ToLower(c) {
+	case "utf-8":
+		return r, nil
+	case "koi8-r":
+		decoder = charmap.KOI8R.NewDecoder()
+	case "windows-1251":
+		decoder = charmap.Windows1251.NewDecoder()
+	case "windows-1252":
+		decoder = charmap.Windows1252.NewDecoder()
+	default:
+		return nil, errors.New("Unsupported encoding: "+c)
+	}
+	return decoder.Reader(i), nil
+}
+
+func extractFb2Metadata(path string) (string, string, string, string, string, string, []string) {
+	fb2Content, err := os.ReadFile(path)
+	if err != nil {
+		slog.Error("error opening fb2 file", "error", err)
+		return "", "", "", "", "", "", nil
+	}
+
+	var fb2 struct {
+		Description struct {
+			TitleInfo struct {
+				Author struct {
+					FirstName  string `xml:"first-name"`
+					MiddleName string `xml:"middle-name"`
+					LastName   string `xml:"last-name"`
+				} `xml:"author"`
+				BookTitle  string   `xml:"book-title"`
+				Genre      []string `xml:"genre"`
+				Annotation string   `xml:"annotation"`
+			} `xml:"title-info"`
+		} `xml:"description"`
+	}
+
+	decoder := xml.NewDecoder(bytes.NewReader(fb2Content))
+	decoder.CharsetReader = charsetReader
+	if err := decoder.Decode(&fb2); err != nil {
+		slog.Error("error parsing fb2 file", "error", err)
+		return "", "", "", "", "", "", nil
+	}
+
+	var authorName []string
+	if fb2.Description.TitleInfo.Author.FirstName != "" {
+		authorName = append(authorName, fb2.Description.TitleInfo.Author.FirstName)
+	}
+	if fb2.Description.TitleInfo.Author.MiddleName != "" {
+		authorName = append(authorName, fb2.Description.TitleInfo.Author.MiddleName)
+	}
+	if fb2.Description.TitleInfo.Author.LastName != "" {
+		authorName = append(authorName, fb2.Description.TitleInfo.Author.LastName)
+	}
+
+	return fb2.Description.TitleInfo.BookTitle, strings.Join(authorName, " "), "", fb2.Description.TitleInfo.Annotation, "", "", fb2.Description.TitleInfo.Genre
 }
 
 func extractEpubMetadata(path string) (string, string, string, string, string, string, []string) {

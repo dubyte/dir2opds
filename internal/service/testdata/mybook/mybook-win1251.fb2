@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink"><description><title-info><genre>unrecognised</genre><author><first-name>Лев</first-name><middle-name>Николаевич</middle-name><last-name>Толстой</last-name></author><book-title>Война и мир</book-title></title-info><document-info><program-used>pandoc</program-used></document-info></description><body><title><p>Unknown Title</p></title><section><p /><p>Fixture</p></section></body></FictionBook>

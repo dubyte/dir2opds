@@ -108,8 +108,8 @@ func TestScan(t *testing.T) {
 		catalog, err := s.Scan("testdata/mybook", "/mybook", 1)
 		require.NoError(t, err)
 		assert.Equal(t, "/mybook", catalog.ID)
-		// mybook has 6 files but mybook.opf should be ignored
-		assert.Len(t, catalog.Entries, 5)
+		// mybook has 8 files but mybook.opf should be ignored
+		assert.Len(t, catalog.Entries, 7)
 		for _, entry := range catalog.Entries {
 			assert.NotContains(t, entry.Name, ".opf")
 		}
@@ -323,9 +323,23 @@ var acquisitionFeed = `<?xml version="1.0" encoding="UTF-8"?>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
       <entry>
+          <title>mybook-win1251.fb2</title>
+          <id>/mybookmybook-win1251.fb2</id>
+          <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook-win1251.fb2" type="text/fb2+xml; charset=utf-8" title="mybook-win1251.fb2"></link>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
+      </entry>
+      <entry>
           <title>mybook.epub</title>
           <id>/mybookmybook.epub</id>
           <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook.epub" type="application/epub+zip" title="mybook.epub"></link>
+          <published>2020-05-25T00:00:00+00:00</published>
+          <updated>2020-05-25T00:00:00+00:00</updated>
+      </entry>
+      <entry>
+          <title>mybook.fb2</title>
+          <id>/mybookmybook.fb2</id>
+          <link rel="http://opds-spec.org/acquisition/open-access" href="/mybook/mybook.fb2" type="text/fb2+xml; charset=utf-8" title="mybook.fb2"></link>
           <published>2020-05-25T00:00:00+00:00</published>
           <updated>2020-05-25T00:00:00+00:00</updated>
       </entry>
