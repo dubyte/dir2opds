@@ -25,8 +25,7 @@ import (
 	"time"
 
 	"github.com/dubyte/dir2opds/opds"
-	"golang.org/x/text/encoding/charmap"
-	"golang.org/x/text/encoding"
+	"golang.org/x/net/html/charset"
 	"rsc.io/pdf"
 )
 
@@ -281,24 +280,6 @@ func extractMetadata(path string) (string, string, string, string, string, strin
 	return "", "", "", "", "", "", nil
 }
 
-func charsetReader(c string, i io.Reader) (r io.Reader, e error) {
-	var decoder *encoding.Decoder
-
-	switch strings.ToLower(c) {
-	case "utf-8":
-		return r, nil
-	case "koi8-r":
-		decoder = charmap.KOI8R.NewDecoder()
-	case "windows-1251":
-		decoder = charmap.Windows1251.NewDecoder()
-	case "windows-1252":
-		decoder = charmap.Windows1252.NewDecoder()
-	default:
-		return nil, errors.New("Unsupported encoding: "+c)
-	}
-	return decoder.Reader(i), nil
-}
-
 func extractFb2Metadata(path string) (string, string, string, string, string, string, []string) {
 	fb2Content, err := os.ReadFile(path)
 	if err != nil {
@@ -322,7 +303,7 @@ func extractFb2Metadata(path string) (string, string, string, string, string, st
 	}
 
 	decoder := xml.NewDecoder(bytes.NewReader(fb2Content))
-	decoder.CharsetReader = charsetReader
+	decoder.CharsetReader = charset.NewReaderLabel
 	if err := decoder.Decode(&fb2); err != nil {
 		slog.Error("error parsing fb2 file", "error", err)
 		return "", "", "", "", "", "", nil
