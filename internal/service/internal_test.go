@@ -88,6 +88,24 @@ func TestExtractMetadata(t *testing.T) {
 		path := filepath.Join("testdata", "mybook", "mybook.epub")
 		title, author, coverPath, description, series, seriesIndex, subjects := extractEpubMetadata(path)
 		t.Logf("EPUB Title: %q, Author: %q, CoverPath: %q, Description: %q, Series: %q, SeriesIndex: %q, Subjects: %v", title, author, coverPath, description, series, seriesIndex, subjects)
+		assert.Equal(t, "Unknown Title", title)
+		assert.Equal(t, "Unknown Author", author)
+	})
+
+	t.Run("Extract FB2", func(t *testing.T) {
+		path := filepath.Join("testdata", "mybook", "mybook.fb2")
+		title, author, coverPath, description, series, seriesIndex, subjects := extractFb2Metadata(path)
+		t.Logf("FB2 Title: %q, Author: %q, CoverPath: %q, Description: %q, Series: %q, SeriesIndex: %q, Subjects: %v", title, author, coverPath, description, series, seriesIndex, subjects)
+		assert.Equal(t, "Unknown Title", title)
+		assert.Equal(t, "Unknown Author", author)
+	})
+
+	t.Run("Extract FB2 with non-UTF-8 encodong", func(t *testing.T) {
+		path := filepath.Join("testdata", "mybook", "mybook-win1251.fb2")
+		title, author, coverPath, description, series, seriesIndex, subjects := extractFb2Metadata(path)
+		t.Logf("FB2 Title: %q, Author: %q, CoverPath: %q, Description: %q, Series: %q, SeriesIndex: %q, Subjects: %v", title, author, coverPath, description, series, seriesIndex, subjects)
+		assert.Equal(t, "Война и мир", title)
+		assert.Equal(t, "Лев Николаевич Толстой", author)
 	})
 
 	t.Run("Extract PDF", func(t *testing.T) {
@@ -129,7 +147,7 @@ func TestPagination(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, catalog.Page)
 		assert.Equal(t, defaultPageSize, catalog.PageSize)
-		assert.Equal(t, 5, catalog.Total)
+		assert.Equal(t, 7, catalog.Total)
 	})
 
 	t.Run("Page with small page size", func(t *testing.T) {
@@ -138,7 +156,7 @@ func TestPagination(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, catalog.Page)
 		assert.Equal(t, 2, catalog.PageSize)
-		assert.Equal(t, 5, catalog.Total)
+		assert.Equal(t, 7, catalog.Total)
 		assert.Len(t, catalog.Entries, 2)
 	})
 
@@ -147,7 +165,7 @@ func TestPagination(t *testing.T) {
 		catalog, err := s.Scan("testdata/mybook", "/mybook", 2)
 		require.NoError(t, err)
 		assert.Equal(t, 2, catalog.Page)
-		assert.Equal(t, 5, catalog.Total)
+		assert.Equal(t, 7, catalog.Total)
 		assert.Len(t, catalog.Entries, 2)
 	})
 
@@ -156,8 +174,8 @@ func TestPagination(t *testing.T) {
 		catalog, err := s.Scan("testdata/mybook", "/mybook", 3)
 		require.NoError(t, err)
 		assert.Equal(t, 3, catalog.Page)
-		assert.Equal(t, 5, catalog.Total)
-		assert.Len(t, catalog.Entries, 1)
+		assert.Equal(t, 7, catalog.Total)
+		assert.Len(t, catalog.Entries, 2)
 	})
 
 	t.Run("Page beyond total", func(t *testing.T) {
