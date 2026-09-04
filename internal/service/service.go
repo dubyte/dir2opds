@@ -280,6 +280,55 @@ func extractMetadata(path string) (string, string, string, string, string, strin
 	return "", "", "", "", "", "", nil
 }
 
+// fb2Author holds one <author> element of an FB2 <title-info>.
+type fb2Author struct {
+	FirstName  string `xml:"first-name"`
+	MiddleName string `xml:"middle-name"`
+	LastName   string `xml:"last-name"`
+	Nickname   string `xml:"nickname"`
+}
+
+// fb2Name renders a single author as "First Middle Last", skipping empty parts.
+// FB2 allows nickname-only authors (common for pseudonyms), used as a fallback
+// when no name parts are present.
+func fb2Name(a fb2Author) string {
+	parts := make([]string, 0, 3)
+	for _, p := range []string{a.FirstName, a.MiddleName, a.LastName} {
+		if p = strings.TrimSpace(p); p != "" {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) == 0 {
+		return strings.TrimSpace(a.Nickname)
+	}
+	return strings.Join(parts, " ")
+}
+
+// fb2Text returns the text of an FB2 inline fragment (e.g. a paragraph that
+// may contain <emphasis> or <a> markup), with whitespace collapsed. encoding/xml
+// skips nested elements when unmarshaling into a plain string, so paragraphs are
+// captured as raw inner XML and decoded here. CharData is concatenated without a
+// separator (inter-element whitespace is itself CharData) so mid-word markup
+// such as anti<emphasis>hero</emphasis> stays "antihero".
+func fb2Text(fragment string) string {
+	decoder := xml.NewDecoder(strings.NewReader("<r>" + fragment + "</r>"))
+	var b strings.Builder
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			// Malformed fragment: drop the paragraph rather than emit half of it.
+			return ""
+		}
+		if data, ok := tok.(xml.CharData); ok {
+			b.Write(data)
+		}
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
 func extractFb2Metadata(path string) (string, string, string, string, string, string, []string) {
 	fb2Content, err := os.ReadFile(path)
 	if err != nil {
@@ -290,14 +339,14 @@ func extractFb2Metadata(path string) (string, string, string, string, string, st
 	var fb2 struct {
 		Description struct {
 			TitleInfo struct {
-				Author struct {
-					FirstName  string `xml:"first-name"`
-					MiddleName string `xml:"middle-name"`
-					LastName   string `xml:"last-name"`
-				} `xml:"author"`
-				BookTitle  string   `xml:"book-title"`
-				Genre      []string `xml:"genre"`
-				Annotation string   `xml:"annotation"`
+				Authors    []fb2Author `xml:"author"`
+				BookTitle  string      `xml:"book-title"`
+				Genre      []string    `xml:"genre"`
+				Annotation struct {
+					Paragraphs []struct {
+						Inner string `xml:",innerxml"`
+					} `xml:"p"`
+				} `xml:"annotation"`
 			} `xml:"title-info"`
 		} `xml:"description"`
 	}
@@ -309,18 +358,23 @@ func extractFb2Metadata(path string) (string, string, string, string, string, st
 		return "", "", "", "", "", "", nil
 	}
 
-	var authorName []string
-	if fb2.Description.TitleInfo.Author.FirstName != "" {
-		authorName = append(authorName, fb2.Description.TitleInfo.Author.FirstName)
-	}
-	if fb2.Description.TitleInfo.Author.MiddleName != "" {
-		authorName = append(authorName, fb2.Description.TitleInfo.Author.MiddleName)
-	}
-	if fb2.Description.TitleInfo.Author.LastName != "" {
-		authorName = append(authorName, fb2.Description.TitleInfo.Author.LastName)
+	var authors []string
+	for _, author := range fb2.Description.TitleInfo.Authors {
+		if name := fb2Name(author); name != "" {
+			authors = append(authors, name)
+		}
 	}
 
-	return fb2.Description.TitleInfo.BookTitle, strings.Join(authorName, " "), "", fb2.Description.TitleInfo.Annotation, "", "", fb2.Description.TitleInfo.Genre
+	// FB2 annotations wrap their text in <p> elements, so a plain string field
+	// would never capture anything.
+	var paragraphs []string
+	for _, p := range fb2.Description.TitleInfo.Annotation.Paragraphs {
+		if text := fb2Text(p.Inner); text != "" {
+			paragraphs = append(paragraphs, text)
+		}
+	}
+
+	return strings.TrimSpace(fb2.Description.TitleInfo.BookTitle), strings.Join(authors, ", "), "", strings.Join(paragraphs, " "), "", "", fb2.Description.TitleInfo.Genre
 }
 
 func extractEpubMetadata(path string) (string, string, string, string, string, string, []string) {

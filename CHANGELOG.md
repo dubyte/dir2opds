@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **FB2 metadata extraction** — Title, all authors (first/middle/last), genres and the annotation (→ `<atom:summary>`) are now extracted from `.fb2` files, including legacy encodings such as windows-1251.
+
 ## [1.10.1] - 2026-07-11
 
 ### Added

@@ -97,15 +97,36 @@ func TestExtractMetadata(t *testing.T) {
 		title, author, coverPath, description, series, seriesIndex, subjects := extractFb2Metadata(path)
 		t.Logf("FB2 Title: %q, Author: %q, CoverPath: %q, Description: %q, Series: %q, SeriesIndex: %q, Subjects: %v", title, author, coverPath, description, series, seriesIndex, subjects)
 		assert.Equal(t, "Unknown Title", title)
-		assert.Equal(t, "Unknown Author", author)
+		// Multiple <author> elements are all captured, in document order;
+		// nickname-only authors (e.g. pseudonyms) are kept too.
+		assert.Equal(t, "Unknown Author, Jane Q Doe, Penn", author)
+		// <annotation> text lives in <p> elements; both paragraphs are joined
+		// and inline markup such as <emphasis> contributes its text.
+		assert.Equal(t, "First paragraph of the annotation. Second paragraph of the annotation with markup inside.", description)
+		assert.Equal(t, []string{"unrecognised"}, subjects)
 	})
 
-	t.Run("Extract FB2 with non-UTF-8 encodong", func(t *testing.T) {
+	t.Run("Extract FB2 with non-UTF-8 encoding", func(t *testing.T) {
 		path := filepath.Join("testdata", "mybook", "mybook-win1251.fb2")
 		title, author, coverPath, description, series, seriesIndex, subjects := extractFb2Metadata(path)
 		t.Logf("FB2 Title: %q, Author: %q, CoverPath: %q, Description: %q, Series: %q, SeriesIndex: %q, Subjects: %v", title, author, coverPath, description, series, seriesIndex, subjects)
 		assert.Equal(t, "Война и мир", title)
 		assert.Equal(t, "Лев Николаевич Толстой", author)
+		assert.Empty(t, description)
+	})
+
+	t.Run("Extract FB2 from malformed file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "broken.fb2")
+		require.NoError(t, os.WriteFile(path, []byte("<FictionBook><description><title-info><book-title>Broken"), 0o644))
+		title, author, coverPath, description, series, seriesIndex, subjects := extractFb2Metadata(path)
+		t.Logf("FB2 Title: %q, Author: %q, CoverPath: %q, Description: %q, Series: %q, SeriesIndex: %q, Subjects: %v", title, author, coverPath, description, series, seriesIndex, subjects)
+		assert.Empty(t, title)
+		assert.Empty(t, author)
+		assert.Empty(t, coverPath)
+		assert.Empty(t, description)
+		assert.Empty(t, series)
+		assert.Empty(t, seriesIndex)
+		assert.Nil(t, subjects)
 	})
 
 	t.Run("Extract PDF", func(t *testing.T) {
@@ -137,6 +158,37 @@ func TestPageSize(t *testing.T) {
 
 	s.PageSize = 0
 	assert.Equal(t, defaultPageSize, s.pageSize())
+}
+
+func TestFb2Text(t *testing.T) {
+	tests := []struct {
+		name     string
+		fragment string
+		want     string
+	}{
+		{"plain text", "First paragraph.", "First paragraph."},
+		{"mid-word markup keeps adjacency", "anti<emphasis>hero</emphasis> story", "antihero story"},
+		{"markup between words", "one <a>link</a> two", "one link two"},
+		{"whitespace collapsed", "  spaced\n\t out  ", "spaced out"},
+		{"empty fragment", "", ""},
+		{"whitespace only", "   ", ""},
+		{"entity unescaping", "AT&amp;T &lt;tag&gt;", "AT&T <tag>"},
+		{"malformed fragment is dropped", "<b>unclosed", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, fb2Text(tt.fragment))
+		})
+	}
+}
+
+func TestFb2Name(t *testing.T) {
+	assert.Equal(t, "Lev Nikolayevich Tolstoy", fb2Name(fb2Author{FirstName: "Lev", MiddleName: "Nikolayevich", LastName: "Tolstoy"}))
+	assert.Equal(t, "Lev Tolstoy", fb2Name(fb2Author{FirstName: "Lev", LastName: "Tolstoy", Nickname: "LNT"}), "name parts take precedence over nickname")
+	assert.Equal(t, "Penn", fb2Name(fb2Author{Nickname: "Penn"}), "nickname-only author")
+	assert.Equal(t, "Penn", fb2Name(fb2Author{Nickname: "  Penn  "}), "nickname is trimmed")
+	assert.Equal(t, "", fb2Name(fb2Author{Nickname: "   "}), "whitespace-only nickname")
+	assert.Equal(t, "", fb2Name(fb2Author{}), "empty author")
 }
 
 func TestPagination(t *testing.T) {
