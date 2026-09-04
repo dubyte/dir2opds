@@ -295,9 +295,9 @@ This project is licensed under the **GNU General Public License v3.0**. See [LIC
 ## Acknowledgments
 
 - **@clach04** — Testing and reporting missing content type for comics.
+- **@evgeni** — FB2 metadata extraction (title, authors, genres, annotation) and tests.
+- **@kulak** — Add podman support.
 - **@masked-owl** — Reporting the HTTP path traversal security issue.
 - **@mufeedali** — Update to push image to ghcr.io.
-- **@kulak** — Add podman support.
-- **@evgeni** — FB2 metadata extraction (title, authors, genres, annotation) and tests.
-- **@thenktor** - init files and Makefile improvements.
 - **@rockavoldy** — For the docker command example.
+- **@thenktor** - init files and Makefile improvements.
