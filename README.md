@@ -57,10 +57,10 @@ dir2opds is ideal for anyone who wants a **self-hosted digital library** without
 
 ## Quick start
 
-Using Docker (replace `v1.10.1` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
+Using Docker (replace `v1.11.0` with the [latest release](https://github.com/dubyte/dir2opds/releases) if desired):
 
 ```bash
-docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.10.1
+docker run -d -p 8080:8080 -v ./books:/books --name dir2opds ghcr.io/dubyte/dir2opds:v1.11.0
 ```
 
 ```
@@ -295,8 +295,9 @@ This project is licensed under the **GNU General Public License v3.0**. See [LIC
 ## Acknowledgments
 
 - **@clach04** — Testing and reporting missing content type for comics.
+- **@evgeni** — FB2 metadata extraction (title, authors, genres, annotation) and tests.
+- **@kulak** — Add podman support.
 - **@masked-owl** — Reporting the HTTP path traversal security issue.
 - **@mufeedali** — Update to push image to ghcr.io.
-- **@kulak** — Add podman support.
-- **@thenktor** - init files and Makefile improvements.
 - **@rockavoldy** — For the docker command example.
+- **@thenktor** - init files and Makefile improvements.
