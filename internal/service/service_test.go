@@ -622,3 +622,132 @@ func TestSearchFeedHasNoLastModified(t *testing.T) {
 	assert.Empty(t, resp.Header.Get("ETag"))
 	assert.Contains(t, string(body), "<updated>2026-03-01T09:00:00+00:00</updated>")
 }
+
+func TestETagVariesBySort(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	service.TimeNow = func() time.Time {
+		return time.Date(2020, 5, 25, 0, 0, 0, 0, time.UTC)
+	}
+
+	s := service.OPDS{
+		TrustedRoot:      "testdata",
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		EnableCache:      true,
+	}
+
+	wName := httptest.NewRecorder()
+	reqName := httptest.NewRequest(http.MethodGet, "/?sort=name", nil)
+	require.NoError(t, s.Handler(wName, reqName))
+	etagName := wName.Result().Header.Get("ETag")
+	require.NotEmpty(t, etagName)
+
+	wDate := httptest.NewRecorder()
+	reqDate := httptest.NewRequest(http.MethodGet, "/?sort=date", nil)
+	require.NoError(t, s.Handler(wDate, reqDate))
+	etagDate := wDate.Result().Header.Get("ETag")
+	require.NotEmpty(t, etagDate)
+
+	assert.NotEqual(t, etagName, etagDate, "sort variants must have distinct ETags")
+
+	// Cross-variant If-None-Match must return 200, not 304
+	wCross := httptest.NewRecorder()
+	reqCross := httptest.NewRequest(http.MethodGet, "/?sort=date", nil)
+	reqCross.Header.Set("If-None-Match", etagName)
+	require.NoError(t, s.Handler(wCross, reqCross))
+	assert.Equal(t, http.StatusOK, wCross.Result().StatusCode)
+}
+
+func TestETagVariesByVariant(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	service.TimeNow = func() time.Time {
+		return time.Date(2020, 5, 25, 0, 0, 0, 0, time.UTC)
+	}
+
+	s := service.OPDS{
+		TrustedRoot:      "testdata",
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		EnableCache:      true,
+		EnableHTML:       true,
+	}
+
+	wXML := httptest.NewRecorder()
+	reqXML := httptest.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, s.Handler(wXML, reqXML))
+	etagXML := wXML.Result().Header.Get("ETag")
+	require.NotEmpty(t, etagXML)
+
+	wHTML := httptest.NewRecorder()
+	reqHTML := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqHTML.Header.Set("Accept", "text/html")
+	require.NoError(t, s.Handler(wHTML, reqHTML))
+	etagHTML := wHTML.Result().Header.Get("ETag")
+	require.NotEmpty(t, etagHTML)
+
+	assert.NotEqual(t, etagXML, etagHTML, "HTML and XML responses must have distinct ETags")
+
+	// Cross-variant If-None-Match must return 200, not 304
+	wCross := httptest.NewRecorder()
+	reqCross := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqCross.Header.Set("Accept", "text/html")
+	reqCross.Header.Set("If-None-Match", etagXML)
+	require.NoError(t, s.Handler(wCross, reqCross))
+	assert.Equal(t, http.StatusOK, wCross.Result().StatusCode)
+}
+
+func TestSubSecondEditInvalidatesETag(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	processStart := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	t1 := time.Date(2026, 1, 1, 11, 0, 0, 100_000_000, time.UTC)
+	t2 := time.Date(2026, 1, 1, 11, 0, 0, 500_000_000, time.UTC)
+
+	service.TimeNow = func() time.Time {
+		return processStart
+	}
+
+	root := t.TempDir()
+	book1 := filepath.Join(root, "book1.epub")
+	require.NoError(t, os.WriteFile(book1, []byte("epub1"), 0o644))
+	require.NoError(t, os.Chtimes(book1, t1, t1))
+	require.NoError(t, os.Chtimes(root, t1, t1))
+
+	s := service.OPDS{
+		TrustedRoot:      root,
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		EnableCache:      true,
+	}
+
+	w1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, s.Handler(w1, req1))
+	etag1 := w1.Result().Header.Get("ETag")
+	lm1 := w1.Result().Header.Get("Last-Modified")
+
+	// Sub-second update within the same second
+	require.NoError(t, os.Chtimes(book1, t2, t2))
+	require.NoError(t, os.Chtimes(root, t2, t2))
+
+	w2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req2.Header.Set("If-None-Match", etag1)
+	req2.Header.Set("If-Modified-Since", lm1)
+	require.NoError(t, s.Handler(w2, req2))
+
+	resp2 := w2.Result()
+	assert.Equal(t, http.StatusOK, resp2.StatusCode, "new ETag must win over same-second If-Modified-Since")
+	assert.NotEqual(t, etag1, resp2.Header.Get("ETag"))
+}

@@ -279,20 +279,23 @@ func TestEtag(t *testing.T) {
 	t1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
-	etag1 := etag("/path", t1, 1)
-	etag2 := etag("/path", t1, 1)
+	etag1 := etag("/path?page=1#xml", t1)
+	etag2 := etag("/path?page=1#xml", t1)
 	assert.Equal(t, etag1, etag2, "same inputs should produce same etag")
 
-	etag3 := etag("/path", t2, 1)
+	etag3 := etag("/path?page=1#xml", t2)
 	assert.NotEqual(t, etag1, etag3, "different time should produce different etag")
 
-	etag4 := etag("/path", t1, 2)
-	assert.NotEqual(t, etag1, etag4, "different page should produce different etag")
+	etag4 := etag("/path?page=2#xml", t1)
+	assert.NotEqual(t, etag1, etag4, "different query should produce different etag")
 
-	etag5 := etag("/other", t1, 1)
+	etag5 := etag("/other?page=1#xml", t1)
 	assert.NotEqual(t, etag1, etag5, "different path should produce different etag")
 
-	assert.True(t, strings.HasPrefix(etag1, `"`), "etag should be quoted")
+	etag6 := etag("/path?page=1#html", t1)
+	assert.NotEqual(t, etag1, etag6, "html vs xml should produce different etag")
+
+	assert.True(t, strings.HasPrefix(etag1, `W/"`), "etag should have weak prefix")
 	assert.True(t, strings.HasSuffix(etag1, `"`), "etag should be quoted")
 }
 

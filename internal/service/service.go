@@ -183,12 +183,66 @@ func cloneURLValues(v url.Values) url.Values {
 	return clone
 }
 
-func etag(urlPath string, modTime time.Time, page int) string {
+func feedKey(req *http.Request, urlPath string, html bool) string {
+	variant := "xml"
+	if html {
+		variant = "html"
+	}
+	return urlPath + "?" + req.URL.RawQuery + "#" + variant
+}
+
+func etag(key string, modTime time.Time) string {
 	h := sha256.New()
-	h.Write([]byte(urlPath))
+	h.Write([]byte(key))
 	h.Write([]byte(modTime.UTC().Format(time.RFC3339Nano)))
-	h.Write([]byte(strconv.Itoa(page)))
-	return `"` + hex.EncodeToString(h.Sum(nil))[:16] + `"`
+	return `W/"` + hex.EncodeToString(h.Sum(nil))[:16] + `"`
+}
+
+func weakETagMatches(ifNoneMatch, target string) bool {
+	targetOpaque := strings.TrimPrefix(target, "W/")
+	for _, raw := range strings.Split(ifNoneMatch, ",") {
+		cand := strings.TrimSpace(raw)
+		if cand == "*" {
+			return true
+		}
+		if strings.TrimPrefix(cand, "W/") == targetOpaque {
+			return true
+		}
+	}
+	return false
+}
+
+func (s OPDS) cacheHeaders(w http.ResponseWriter, req *http.Request, key string, modTime time.Time) bool {
+	if s.NoCache {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Expires", "0")
+	}
+
+	if s.EnableCache && !modTime.IsZero() {
+		eTag := etag(key, modTime)
+		lastModified := httpModTime(modTime).UTC()
+
+		w.Header().Set("ETag", eTag)
+		w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
+
+		if req.Method == http.MethodGet || req.Method == http.MethodHead {
+			if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" {
+				if weakETagMatches(ifNoneMatch, eTag) {
+					w.WriteHeader(http.StatusNotModified)
+					return true
+				}
+			} else if ifModifiedSince := req.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
+				if t, err := time.Parse(http.TimeFormat, ifModifiedSince); err == nil {
+					if !lastModified.After(t) {
+						w.WriteHeader(http.StatusNotModified)
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
@@ -652,11 +706,6 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		return nil
 	}
 
-	if s.NoCache {
-		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
-		w.Header().Add("Expires", "0")
-	}
-
 	page := parsePage(req.URL.Query().Get("page"))
 	sortBy := getSortFromQuery(req)
 	if sortBy != "" {
@@ -684,31 +733,13 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 
 	modTime := effectiveModTime(catalog.ModTime)
 	lastModified := httpModTime(modTime).UTC()
+	html := s.EnableHTML && isBrowser(req)
 
-	if s.EnableCache {
-		eTag := etag(urlPath, modTime, page)
-
-		w.Header().Set("ETag", eTag)
-		w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
-
-		if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" {
-			if ifNoneMatch == eTag {
-				w.WriteHeader(http.StatusNotModified)
-				return nil
-			}
-		}
-
-		if ifModifiedSince := req.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
-			if t, err := time.Parse(http.TimeFormat, ifModifiedSince); err == nil {
-				if !lastModified.After(t) {
-					w.WriteHeader(http.StatusNotModified)
-					return nil
-				}
-			}
-		}
+	if s.cacheHeaders(w, req, feedKey(req, urlPath, html), modTime) {
+		return nil
 	}
 
-	if s.EnableHTML && isBrowser(req) {
+	if html {
 		return s.renderHTML(w, req, catalog)
 	}
 
