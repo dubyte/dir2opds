@@ -1,6 +1,8 @@
 package service_test
 
 import (
+	"archive/zip"
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -498,8 +500,8 @@ func TestLastModifiedTracksChanges(t *testing.T) {
 	}
 
 	for name, enableCache := range map[string]bool{
-		"default mode":  false,
-		"enable-cache":  true,
+		"default mode": false,
+		"enable-cache": true,
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
@@ -750,4 +752,220 @@ func TestSubSecondEditInvalidatesETag(t *testing.T) {
 	resp2 := w2.Result()
 	assert.Equal(t, http.StatusOK, resp2.StatusCode, "new ETag must win over same-second If-Modified-Since")
 	assert.NotEqual(t, etag1, resp2.Header.Get("ETag"))
+}
+
+func TestNoCacheSuppresses304(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	fixedStart := time.Date(2020, 5, 25, 0, 0, 0, 0, time.UTC)
+	service.TimeNow = func() time.Time {
+		return fixedStart
+	}
+
+	s := service.OPDS{
+		TrustedRoot:      "testdata",
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		NoCache:          true,
+		EnableCache:      true,
+		EnableSearch:     true,
+	}
+
+	t.Run("feed with NoCache and EnableCache emits no validators and never returns 304", func(t *testing.T) {
+		w1 := httptest.NewRecorder()
+		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+		require.NoError(t, s.Handler(w1, req1))
+
+		resp1 := w1.Result()
+		assert.Equal(t, http.StatusOK, resp1.StatusCode)
+		assert.Equal(t, "no-cache, no-store, must-revalidate", resp1.Header.Get("Cache-Control"))
+		assert.Equal(t, "0", resp1.Header.Get("Expires"))
+		assert.Empty(t, resp1.Header.Get("ETag"))
+		assert.Empty(t, resp1.Header.Get("Last-Modified"))
+
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req2.Header.Set("If-Modified-Since", fixedStart.Format(http.TimeFormat))
+		req2.Header.Set("If-None-Match", `W/"deadbeefdeadbeef"`)
+		require.NoError(t, s.Handler(w2, req2))
+
+		assert.Equal(t, http.StatusOK, w2.Result().StatusCode)
+	})
+
+	t.Run("search with NoCache sets Cache-Control headers", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/search?q=mybook", nil)
+		require.NoError(t, s.SearchHandler(w, req))
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "no-cache, no-store, must-revalidate", resp.Header.Get("Cache-Control"))
+		assert.Equal(t, "0", resp.Header.Get("Expires"))
+		assert.Empty(t, resp.Header.Get("Last-Modified"))
+	})
+}
+
+func writeTestEpubWithCover(t *testing.T, epubPath string) {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+
+	opf := `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Test Book</dc:title>
+  </metadata>
+  <manifest>
+    <item id="cover-image" href="cover.jpg" media-type="image/jpeg"/>
+  </manifest>
+</package>`
+	fw, err := zw.Create("content.opf")
+	require.NoError(t, err)
+	_, err = fw.Write([]byte(opf))
+	require.NoError(t, err)
+
+	cw, err := zw.Create("cover.jpg")
+	require.NoError(t, err)
+	_, err = cw.Write([]byte("\xff\xd8\xff\xe0fakejpeg"))
+	require.NoError(t, err)
+
+	require.NoError(t, zw.Close())
+	require.NoError(t, os.WriteFile(epubPath, buf.Bytes(), 0o644))
+}
+
+func TestCoverHandlerCaching(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	processStart := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	fileTime := time.Date(2026, 1, 2, 15, 30, 45, 789_000_000, time.UTC)
+	expectedLM := time.Date(2026, 1, 2, 15, 30, 45, 0, time.UTC).Format(http.TimeFormat)
+
+	service.TimeNow = func() time.Time {
+		return processStart
+	}
+
+	root := t.TempDir()
+	epubPath := filepath.Join(root, "book.epub")
+	writeTestEpubWithCover(t, epubPath)
+	require.NoError(t, os.Chtimes(epubPath, fileTime, fileTime))
+
+	t.Run("default mode sets truthful Last-Modified and answers 304", func(t *testing.T) {
+		s := service.OPDS{TrustedRoot: root}
+
+		w1 := httptest.NewRecorder()
+		req1 := httptest.NewRequest(http.MethodGet, "/cover?file=/book.epub", nil)
+		require.NoError(t, s.CoverHandler(w1, req1))
+
+		resp1 := w1.Result()
+		assert.Equal(t, http.StatusOK, resp1.StatusCode)
+		assert.Equal(t, "max-age=86400", resp1.Header.Get("Cache-Control"))
+		assert.Equal(t, expectedLM, resp1.Header.Get("Last-Modified"))
+
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/cover?file=/book.epub", nil)
+		req2.Header.Set("If-Modified-Since", expectedLM)
+		require.NoError(t, s.CoverHandler(w2, req2))
+
+		assert.Equal(t, http.StatusNotModified, w2.Result().StatusCode)
+	})
+
+	t.Run("NoCache suppresses max-age, Last-Modified and 304", func(t *testing.T) {
+		s := service.OPDS{TrustedRoot: root, NoCache: true}
+
+		w1 := httptest.NewRecorder()
+		req1 := httptest.NewRequest(http.MethodGet, "/cover?file=/book.epub", nil)
+		require.NoError(t, s.CoverHandler(w1, req1))
+
+		resp1 := w1.Result()
+		assert.Equal(t, http.StatusOK, resp1.StatusCode)
+		assert.Equal(t, "no-cache, no-store, must-revalidate", resp1.Header.Get("Cache-Control"))
+		assert.Empty(t, resp1.Header.Get("Last-Modified"))
+
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/cover?file=/book.epub", nil)
+		req2.Header.Set("If-Modified-Since", expectedLM)
+		require.NoError(t, s.CoverHandler(w2, req2))
+
+		assert.Equal(t, http.StatusOK, w2.Result().StatusCode)
+	})
+}
+
+func TestHTMLCaching(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	processStart := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	fileTime := time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)
+	expectedLM := fileTime.Format(http.TimeFormat)
+
+	service.TimeNow = func() time.Time {
+		return processStart
+	}
+
+	root := t.TempDir()
+	book := filepath.Join(root, "book.epub")
+	require.NoError(t, os.WriteFile(book, []byte("epub"), 0o644))
+	require.NoError(t, os.Chtimes(book, fileTime, fileTime))
+	require.NoError(t, os.Chtimes(root, fileTime, fileTime))
+
+	t.Run("default mode HTML emits Last-Modified and answers 304", func(t *testing.T) {
+		s := service.OPDS{
+			TrustedRoot:      root,
+			HideCalibreFiles: true,
+			HideDotFiles:     true,
+			EnableHTML:       true,
+		}
+
+		w1 := httptest.NewRecorder()
+		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req1.Header.Set("Accept", "text/html")
+		require.NoError(t, s.Handler(w1, req1))
+
+		resp1 := w1.Result()
+		assert.Equal(t, http.StatusOK, resp1.StatusCode)
+		assert.Equal(t, expectedLM, resp1.Header.Get("Last-Modified"))
+
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req2.Header.Set("Accept", "text/html")
+		req2.Header.Set("If-Modified-Since", expectedLM)
+		require.NoError(t, s.Handler(w2, req2))
+
+		assert.Equal(t, http.StatusNotModified, w2.Result().StatusCode)
+	})
+
+	t.Run("NoCache HTML suppresses Last-Modified and 304", func(t *testing.T) {
+		s := service.OPDS{
+			TrustedRoot:      root,
+			HideCalibreFiles: true,
+			HideDotFiles:     true,
+			EnableHTML:       true,
+			NoCache:          true,
+		}
+
+		w1 := httptest.NewRecorder()
+		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req1.Header.Set("Accept", "text/html")
+		require.NoError(t, s.Handler(w1, req1))
+
+		resp1 := w1.Result()
+		assert.Equal(t, http.StatusOK, resp1.StatusCode)
+		assert.Empty(t, resp1.Header.Get("Last-Modified"))
+
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req2.Header.Set("Accept", "text/html")
+		req2.Header.Set("If-Modified-Since", expectedLM)
+		require.NoError(t, s.Handler(w2, req2))
+
+		assert.Equal(t, http.StatusOK, w2.Result().StatusCode)
+	})
 }

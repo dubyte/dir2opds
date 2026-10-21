@@ -216,6 +216,7 @@ func (s OPDS) cacheHeaders(w http.ResponseWriter, req *http.Request, key string,
 	if s.NoCache {
 		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Add("Expires", "0")
+		return false
 	}
 
 	if s.EnableCache && !modTime.IsZero() {
@@ -733,6 +734,9 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 
 	modTime := effectiveModTime(catalog.ModTime)
 	lastModified := httpModTime(modTime).UTC()
+	if s.NoCache {
+		lastModified = time.Time{}
+	}
 	html := s.EnableHTML && isBrowser(req)
 
 	if s.cacheHeaders(w, req, feedKey(req, urlPath, html), modTime) {
@@ -833,17 +837,22 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 	catalog.PageSize = pageSize
 	catalog.Entries = catalog.Entries[start:end]
 
+	if s.NoCache {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Expires", "0")
+	}
+
 	if s.EnableHTML && isBrowser(req) {
 		return s.renderHTML(w, req, catalog)
 	}
 
 	navFeed := s.makeFeed(catalog, req)
-		navFeed.Opds = "http://opds-spec.org/2010/catalog"
-		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/"}
-		content, err := xml.MarshalIndent(acFeed, "  ", "    ")
-		if err != nil {
-			return err
-		}
+	navFeed.Opds = "http://opds-spec.org/2010/catalog"
+	acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/"}
+	content, err := xml.MarshalIndent(acFeed, "  ", "    ")
+	if err != nil {
+		return err
+	}
 
 	w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
 	content = append([]byte(xml.Header), content...)
@@ -896,7 +905,8 @@ func (s OPDS) CoverHandler(w http.ResponseWriter, req *http.Request) error {
 		return nil
 	}
 
-	if _, err := os.Stat(fPath); err != nil {
+	info, err := os.Stat(fPath)
+	if err != nil {
 		slog.Error("file stat error for cover", "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return nil
@@ -914,8 +924,15 @@ func (s OPDS) CoverHandler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Cache-Control", "max-age=86400")
-	http.ServeContent(w, req, "cover", TimeNow(), bytes.NewReader(coverData))
+	var serveModTime time.Time
+	if s.NoCache {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Expires", "0")
+	} else {
+		w.Header().Set("Cache-Control", "max-age=86400")
+		serveModTime = httpModTime(effectiveModTime(info.ModTime())).UTC()
+	}
+	http.ServeContent(w, req, "cover", serveModTime, bytes.NewReader(coverData))
 	return nil
 }
 

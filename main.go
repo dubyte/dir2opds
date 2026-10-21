@@ -36,7 +36,7 @@ var (
 	debug            = flag.Bool("debug", false, "If it is set it will log the requests.")
 	hideCalibreFiles = flag.Bool("hide-calibre-files", true, "Hide files stored by calibre.")
 	hideDotFiles     = flag.Bool("hide-dot-files", true, "Hide files that starts with dot.")
-	noCache          = flag.Bool("no-cache", false, "adds reponse headers to avoid client from caching.")
+	noCache          = flag.Bool("no-cache", false, "Adds response headers to avoid client caching (takes precedence over -enable-cache).")
 	enableCache      = flag.Bool("enable-cache", false, "Enable ETag and Last-Modified headers for conditional requests.")
 	gzip             = flag.Bool("gzip", false, "Enable gzip compression for responses.")
 	sortBy           = flag.String("sort", "name", "Sort entries by: name, date, size.")
