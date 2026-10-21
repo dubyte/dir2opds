@@ -189,6 +189,11 @@ func TestBaseURL(t *testing.T) {
 }
 
 func TestETagAndLastModified(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
 	s := service.OPDS{
 		TrustedRoot:      "testdata",
 		HideCalibreFiles: true,
@@ -425,6 +430,11 @@ func TestContentRange(t *testing.T) {
 }
 
 func TestCrawlableFeed(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
 	s := service.OPDS{
 		TrustedRoot:      "testdata",
 		HideCalibreFiles: true,
@@ -471,4 +481,144 @@ func TestCrawlableFeed(t *testing.T) {
 		assert.Contains(t, string(body), "<title>mybook</title>")
 		assert.Contains(t, string(body), "<title>new folder</title>")
 	})
+}
+
+func TestLastModifiedTracksChanges(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	processStart := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	t1 := time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC)
+	t2 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	service.TimeNow = func() time.Time {
+		return processStart
+	}
+
+	for name, enableCache := range map[string]bool{
+		"default mode":  false,
+		"enable-cache":  true,
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			book1 := filepath.Join(root, "book1.epub")
+			require.NoError(t, os.WriteFile(book1, []byte("epub1"), 0o644))
+			require.NoError(t, os.Chtimes(book1, t1, t1))
+			require.NoError(t, os.Chtimes(root, t1, t1))
+
+			s := service.OPDS{
+				TrustedRoot:      root,
+				HideCalibreFiles: true,
+				HideDotFiles:     true,
+				EnableCache:      enableCache,
+			}
+
+			w1 := httptest.NewRecorder()
+			req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+			require.NoError(t, s.Handler(w1, req1))
+
+			resp1 := w1.Result()
+			assert.Equal(t, http.StatusOK, resp1.StatusCode)
+			lm1 := resp1.Header.Get("Last-Modified")
+			etag1 := resp1.Header.Get("ETag")
+			assert.Equal(t, t1.Format(http.TimeFormat), lm1)
+
+			// Add a newer book with mtime after both processStart and t1
+			book2 := filepath.Join(root, "book2.epub")
+			require.NoError(t, os.WriteFile(book2, []byte("epub2"), 0o644))
+			require.NoError(t, os.Chtimes(book2, t2, t2))
+			require.NoError(t, os.Chtimes(root, t2, t2))
+
+			w2 := httptest.NewRecorder()
+			req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+			req2.Header.Set("If-Modified-Since", lm1)
+			require.NoError(t, s.Handler(w2, req2))
+
+			resp2 := w2.Result()
+			body2, err := io.ReadAll(resp2.Body)
+			require.NoError(t, err)
+
+			assert.Equal(t, http.StatusOK, resp2.StatusCode)
+			assert.Equal(t, t2.Format(http.TimeFormat), resp2.Header.Get("Last-Modified"))
+			if enableCache {
+				assert.NotEqual(t, etag1, resp2.Header.Get("ETag"))
+			}
+			assert.Contains(t, string(body2), "book1.epub")
+			assert.Contains(t, string(body2), "book2.epub")
+			assert.Contains(t, string(body2), "<updated>2026-01-01T12:00:00+00:00</updated>")
+		})
+	}
+}
+
+func TestLastModifiedFloorsAtProcessStart(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	oldFileTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	processStart := time.Date(2026, 2, 1, 8, 30, 0, 0, time.UTC)
+
+	service.TimeNow = func() time.Time {
+		return processStart
+	}
+
+	root := t.TempDir()
+	book := filepath.Join(root, "book.epub")
+	require.NoError(t, os.WriteFile(book, []byte("epub"), 0o644))
+	require.NoError(t, os.Chtimes(book, oldFileTime, oldFileTime))
+	require.NoError(t, os.Chtimes(root, oldFileTime, oldFileTime))
+
+	s := service.OPDS{
+		TrustedRoot:      root,
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		EnableCache:      true,
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, s.Handler(w, req))
+
+	resp := w.Result()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, processStart.Format(http.TimeFormat), resp.Header.Get("Last-Modified"))
+	assert.Contains(t, string(body), "<updated>2025-01-01T00:00:00+00:00</updated>")
+}
+
+func TestSearchFeedHasNoLastModified(t *testing.T) {
+	nowFn := service.TimeNow
+	defer func() {
+		service.TimeNow = nowFn
+	}()
+
+	fixedStart := time.Date(2026, 3, 1, 9, 0, 0, 0, time.UTC)
+	service.TimeNow = func() time.Time {
+		return fixedStart
+	}
+
+	s := service.OPDS{
+		TrustedRoot:      "testdata",
+		HideCalibreFiles: true,
+		HideDotFiles:     true,
+		EnableSearch:     true,
+		EnableCache:      true,
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/search?q=mybook", nil)
+	require.NoError(t, s.SearchHandler(w, req))
+
+	resp := w.Result()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Empty(t, resp.Header.Get("Last-Modified"))
+	assert.Empty(t, resp.Header.Get("ETag"))
+	assert.Contains(t, string(body), "<updated>2026-03-01T09:00:00+00:00</updated>")
 }

@@ -304,6 +304,35 @@ func TestCatalogModTime(t *testing.T) {
 	assert.False(t, catalog.ModTime.IsZero(), "ModTime should be set")
 }
 
+func TestHTTPModTimeClampsFuture(t *testing.T) {
+	origWall := wallClock
+	defer func() { wallClock = origWall }()
+
+	fixedNow := time.Date(2026, 6, 15, 12, 0, 5, 500_000_000, time.UTC)
+	wallClock = func() time.Time { return fixedNow }
+
+	assert.True(t, httpModTime(time.Time{}).IsZero(), "zero time stays zero")
+
+	past := time.Date(2026, 6, 15, 10, 0, 3, 750_000_000, time.UTC)
+	assert.Equal(t, time.Date(2026, 6, 15, 10, 0, 3, 0, time.UTC), httpModTime(past), "sub-second precision dropped")
+
+	future := fixedNow.Add(10 * time.Minute)
+	assert.Equal(t, time.Date(2026, 6, 15, 12, 0, 5, 0, time.UTC), httpModTime(future), "future time clamped to truncated wallClock")
+}
+
+func TestFeedUpdatedFallsBackToTimeNow(t *testing.T) {
+	origNow := TimeNow
+	defer func() { TimeNow = origNow }()
+
+	fixedStart := time.Date(2026, 1, 2, 3, 4, 5, 0, time.FixedZone("EST", -5*3600))
+	TimeNow = func() time.Time { return fixedStart }
+
+	assert.Equal(t, fixedStart.UTC(), feedUpdated(&Catalog{}), "zero ModTime falls back to TimeNow().UTC()")
+
+	catTime := time.Date(2025, 12, 31, 23, 59, 59, 0, time.FixedZone("EST", -5*3600))
+	assert.Equal(t, catTime.UTC(), feedUpdated(&Catalog{ModTime: catTime}), "non-zero ModTime returned in UTC without process-start floor")
+}
+
 func TestExtractEpubCover(t *testing.T) {
 	t.Run("Valid EPUB", func(t *testing.T) {
 		path := filepath.Join("testdata", "mybook", "mybook.epub")

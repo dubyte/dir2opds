@@ -110,7 +110,38 @@ func isFile(e IsDirer) bool {
 
 const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
 
-var TimeNow = timeNowFunc()
+var (
+	TimeNow   = timeNowFunc()
+	wallClock = time.Now
+)
+
+func effectiveModTime(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Time{}
+	}
+	if start := TimeNow(); start.After(t) {
+		return start
+	}
+	return t
+}
+
+func httpModTime(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Time{}
+	}
+	truncated := t.Truncate(time.Second)
+	if now := wallClock().Truncate(time.Second); truncated.After(now) {
+		return now
+	}
+	return truncated
+}
+
+func feedUpdated(catalog *Catalog) time.Time {
+	if catalog != nil && !catalog.ModTime.IsZero() {
+		return catalog.ModTime.UTC()
+	}
+	return TimeNow().UTC()
+}
 
 // Scan inspects the directory and builds a Catalog model
 func (s OPDS) pageSize() int {
@@ -651,9 +682,11 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		"totalPages", (catalog.Total+catalog.PageSize-1)/catalog.PageSize,
 	)
 
+	modTime := effectiveModTime(catalog.ModTime)
+	lastModified := httpModTime(modTime).UTC()
+
 	if s.EnableCache {
-		eTag := etag(urlPath, catalog.ModTime, page)
-		lastModified := catalog.ModTime.UTC()
+		eTag := etag(urlPath, modTime, page)
 
 		w.Header().Set("ETag", eTag)
 		w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
@@ -699,7 +732,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	content = append([]byte(xml.Header), content...)
-	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
+	http.ServeContent(w, req, "feed.xml", lastModified, bytes.NewReader(content))
 
 	return nil
 }
@@ -783,7 +816,7 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 
 	w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
 	content = append([]byte(xml.Header), content...)
-	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
+	http.ServeContent(w, req, "feed.xml", time.Time{}, bytes.NewReader(content))
 	return nil
 }
 
@@ -935,7 +968,7 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 	feedBuilder := opds.FeedBuilder.
 		ID(catalog.ID).
 		Title(catalog.Title).
-		Updated(TimeNow()).
+		Updated(feedUpdated(catalog)).
 		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build()).
 		AddLink(opds.LinkBuilder.Rel("self").Href(s.joinURL(req.URL.Path)).Type(feedType).Build())
 
