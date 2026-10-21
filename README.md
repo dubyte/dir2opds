@@ -144,52 +144,52 @@ dir2opds provides two caching-related options with different use cases:
 
 ### Default (no flags)
 
-Clients use their default caching behavior. No special headers are sent.
+Catalog feeds, HTML views, and extracted covers include a `Last-Modified` header derived from the directory's newest entry modification time, floored at the server start time (so caches invalidate automatically when books are added, removed, or renamed, as well as when the server restarts with new flags). Search feeds omit `Last-Modified` and `ETag` so dynamic search results are never served stale.
 
 ### `-no-cache` — Disable Caching
 
-Forces clients to always fetch fresh data from the server. Useful for:
-- Frequently changing libraries (adding/removing books often)
-- Ensuring clients always see the latest catalog
+Forces clients to always fetch fresh data from the server and suppresses `Last-Modified`, `ETag`, and `304 Not Modified` responses. Useful for:
+- Troubleshooting client caching behavior
+- Forcing full refetches on every request
 
 ```bash
 dir2opds -dir /books -no-cache
 ```
 
-This adds the following headers to every response:
+This adds the following headers to responses and omits cache validators:
 ```
 Cache-Control: no-cache, no-store, must-revalidate
 Expires: 0
 ```
 
-### `-enable-cache` — Enable Conditional Requests
+### `-enable-cache` — Enable ETag and Early Conditional Requests
 
-Enables bandwidth optimization through HTTP conditional requests. Useful for:
-- Large static libraries that rarely change
-- Reducing bandwidth when clients re-fetch the same catalog
+Adds weak `ETag` headers and evaluates conditional requests (`If-None-Match` and `If-Modified-Since`) before marshaling feed XML or rendering HTML. Useful for:
+- Large libraries where skipping XML/HTML serialization on `304 Not Modified` saves CPU and bandwidth
+- Sub-second edits or query-specific caching (`?sort=`, `?page=`, `?complete=true`, HTML vs XML)
 - Mobile clients on metered connections
 
 ```bash
 dir2opds -dir /books -enable-cache
 ```
 
-This adds the following headers to responses:
+This adds the following headers to catalog responses:
 ```
-ETag: "<hash>"
+ETag: W/"<hash>"
 Last-Modified: <timestamp>
 ```
 
 Clients can then send conditional requests:
 ```
-If-None-Match: "<hash>"
+If-None-Match: W/"<hash>"
 If-Modified-Since: <timestamp>
 ```
 
-If the catalog hasn't changed, the server responds with `304 Not Modified` (no body), saving bandwidth.
+If the catalog hasn't changed, the server responds immediately with `304 Not Modified` (no body), saving bandwidth.
 
 ### Combining Flags
 
-Using both `-no-cache` and `-enable-cache` is not recommended. `-no-cache` prevents clients from caching anything, so the 304 optimization from `-enable-cache` would never be used.
+If both `-no-cache` and `-enable-cache` are passed, `-no-cache` takes precedence: no `ETag` or `Last-Modified` headers are sent and `304 Not Modified` is never returned.
 
 ---
 
