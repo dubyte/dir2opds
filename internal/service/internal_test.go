@@ -279,20 +279,23 @@ func TestEtag(t *testing.T) {
 	t1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
-	etag1 := etag("/path", t1, 1)
-	etag2 := etag("/path", t1, 1)
+	etag1 := etag("/path?page=1#xml", t1)
+	etag2 := etag("/path?page=1#xml", t1)
 	assert.Equal(t, etag1, etag2, "same inputs should produce same etag")
 
-	etag3 := etag("/path", t2, 1)
+	etag3 := etag("/path?page=1#xml", t2)
 	assert.NotEqual(t, etag1, etag3, "different time should produce different etag")
 
-	etag4 := etag("/path", t1, 2)
-	assert.NotEqual(t, etag1, etag4, "different page should produce different etag")
+	etag4 := etag("/path?page=2#xml", t1)
+	assert.NotEqual(t, etag1, etag4, "different query should produce different etag")
 
-	etag5 := etag("/other", t1, 1)
+	etag5 := etag("/other?page=1#xml", t1)
 	assert.NotEqual(t, etag1, etag5, "different path should produce different etag")
 
-	assert.True(t, strings.HasPrefix(etag1, `"`), "etag should be quoted")
+	etag6 := etag("/path?page=1#html", t1)
+	assert.NotEqual(t, etag1, etag6, "html vs xml should produce different etag")
+
+	assert.True(t, strings.HasPrefix(etag1, `W/"`), "etag should have weak prefix")
 	assert.True(t, strings.HasSuffix(etag1, `"`), "etag should be quoted")
 }
 
@@ -302,6 +305,45 @@ func TestCatalogModTime(t *testing.T) {
 	catalog, err := s.Scan("testdata/mybook", "/mybook", 1)
 	require.NoError(t, err)
 	assert.False(t, catalog.ModTime.IsZero(), "ModTime should be set")
+}
+
+func TestHTTPModTimeClampsFuture(t *testing.T) {
+	origWall := wallClock
+	defer func() { wallClock = origWall }()
+
+	fixedNow := time.Date(2026, 6, 15, 12, 0, 5, 500_000_000, time.UTC)
+	wallClock = func() time.Time { return fixedNow }
+
+	assert.True(t, httpModTime(time.Time{}).IsZero(), "zero time stays zero")
+
+	past := time.Date(2026, 6, 15, 10, 0, 3, 750_000_000, time.UTC)
+	assert.Equal(t, time.Date(2026, 6, 15, 10, 0, 3, 0, time.UTC), httpModTime(past), "sub-second precision dropped")
+
+	future := fixedNow.Add(10 * time.Minute)
+	assert.Equal(t, time.Date(2026, 6, 15, 12, 0, 5, 0, time.UTC), httpModTime(future), "future time clamped to truncated wallClock")
+}
+
+func TestFeedUpdatedFallsBackToTimeNow(t *testing.T) {
+	origNow := TimeNow
+	defer func() { TimeNow = origNow }()
+
+	fixedStart := time.Date(2026, 1, 2, 3, 4, 5, 0, time.FixedZone("EST", -5*3600))
+	TimeNow = func() time.Time { return fixedStart }
+
+	assert.Equal(t, fixedStart.UTC(), feedUpdated(&Catalog{}), "zero ModTime falls back to TimeNow().UTC()")
+
+	catTime := time.Date(2025, 12, 31, 23, 59, 59, 0, time.FixedZone("EST", -5*3600))
+	assert.Equal(t, catTime.UTC(), feedUpdated(&Catalog{ModTime: catTime}), "non-zero ModTime returned in UTC without process-start floor")
+}
+
+func TestFeedUpdatedClampsFutureModTime(t *testing.T) {
+	origClock := wallClock
+	defer func() { wallClock = origClock }()
+
+	fixedNow := time.Date(2026, 6, 15, 12, 0, 5, 0, time.UTC)
+	wallClock = func() time.Time { return fixedNow }
+
+	assert.Equal(t, fixedNow, feedUpdated(&Catalog{ModTime: fixedNow.Add(time.Hour)}), "future ModTime clamped to wallClock")
 }
 
 func TestExtractEpubCover(t *testing.T) {

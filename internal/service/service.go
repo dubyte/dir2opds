@@ -110,7 +110,46 @@ func isFile(e IsDirer) bool {
 
 const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
 
-var TimeNow = timeNowFunc()
+var (
+	// TimeNow returns the process start time. It is used as the floor for
+	// Last-Modified so restarts invalidate client caches. Overridable in tests.
+	TimeNow = timeNowFunc()
+	// wallClock returns the real current time, used to clamp future mtimes.
+	wallClock = time.Now
+)
+
+func effectiveModTime(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Time{}
+	}
+	if start := TimeNow(); start.After(t) {
+		return start
+	}
+	return t
+}
+
+func httpModTime(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Time{}
+	}
+	truncated := t.Truncate(time.Second)
+	if now := wallClock().Truncate(time.Second); truncated.After(now) {
+		return now
+	}
+	return truncated
+}
+
+// feedUpdated returns the Atom <updated> value: the catalog modtime clamped to
+// the wall clock, or the process start time when the modtime is unknown.
+func feedUpdated(catalog *Catalog) time.Time {
+	if catalog == nil || catalog.ModTime.IsZero() {
+		return TimeNow().UTC()
+	}
+	if now := wallClock(); catalog.ModTime.After(now) {
+		return now.UTC()
+	}
+	return catalog.ModTime.UTC()
+}
 
 // Scan inspects the directory and builds a Catalog model
 func (s OPDS) pageSize() int {
@@ -152,12 +191,78 @@ func cloneURLValues(v url.Values) url.Values {
 	return clone
 }
 
-func etag(urlPath string, modTime time.Time, page int) string {
+func feedKey(req *http.Request, urlPath string, html bool) string {
+	variant := "xml"
+	if html {
+		variant = "html"
+	}
+	return urlPath + "?" + req.URL.RawQuery + "#" + variant
+}
+
+func etag(key string, modTime time.Time) string {
 	h := sha256.New()
-	h.Write([]byte(urlPath))
+	h.Write([]byte(key))
 	h.Write([]byte(modTime.UTC().Format(time.RFC3339Nano)))
-	h.Write([]byte(strconv.Itoa(page)))
-	return `"` + hex.EncodeToString(h.Sum(nil))[:16] + `"`
+	return `W/"` + hex.EncodeToString(h.Sum(nil))[:16] + `"`
+}
+
+func weakETagMatches(ifNoneMatch, target string) bool {
+	targetOpaque := strings.TrimPrefix(target, "W/")
+	for _, raw := range strings.Split(ifNoneMatch, ",") {
+		cand := strings.TrimSpace(raw)
+		if cand == "*" {
+			return true
+		}
+		if strings.TrimPrefix(cand, "W/") == targetOpaque {
+			return true
+		}
+	}
+	return false
+}
+
+// cacheHeaders sets caching headers and reports whether a 304 was written.
+//
+// With -enable-cache it evaluates conditional requests early so a 304 can skip
+// XML marshaling / HTML rendering. http.ServeContent repeats the same checks
+// later with the same Last-Modified value, so the two paths must stay in sync.
+// Note that Scan (including metadata extraction) has already run by now.
+func (s OPDS) cacheHeaders(w http.ResponseWriter, req *http.Request, key string, modTime time.Time) bool {
+	if s.EnableHTML {
+		// The same URL serves HTML or XML depending on Accept.
+		w.Header().Add("Vary", "Accept")
+	}
+
+	if s.NoCache {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Expires", "0")
+		return false
+	}
+
+	if s.EnableCache && !modTime.IsZero() {
+		eTag := etag(key, modTime)
+		lastModified := httpModTime(modTime).UTC()
+
+		w.Header().Set("ETag", eTag)
+		w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
+
+		if req.Method == http.MethodGet || req.Method == http.MethodHead {
+			if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" {
+				if weakETagMatches(ifNoneMatch, eTag) {
+					w.WriteHeader(http.StatusNotModified)
+					return true
+				}
+			} else if ifModifiedSince := req.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
+				if t, err := time.Parse(http.TimeFormat, ifModifiedSince); err == nil {
+					if !lastModified.After(t) {
+						w.WriteHeader(http.StatusNotModified)
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func (s OPDS) Scan(fPath string, urlPath string, page int) (*Catalog, error) {
@@ -621,11 +726,6 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		return nil
 	}
 
-	if s.NoCache {
-		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
-		w.Header().Add("Expires", "0")
-	}
-
 	page := parsePage(req.URL.Query().Get("page"))
 	sortBy := getSortFromQuery(req)
 	if sortBy != "" {
@@ -651,31 +751,18 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 		"totalPages", (catalog.Total+catalog.PageSize-1)/catalog.PageSize,
 	)
 
-	if s.EnableCache {
-		eTag := etag(urlPath, catalog.ModTime, page)
-		lastModified := catalog.ModTime.UTC()
+	modTime := effectiveModTime(catalog.ModTime)
+	lastModified := httpModTime(modTime).UTC()
+	if s.NoCache {
+		lastModified = time.Time{}
+	}
+	html := s.EnableHTML && isBrowser(req)
 
-		w.Header().Set("ETag", eTag)
-		w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
-
-		if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" {
-			if ifNoneMatch == eTag {
-				w.WriteHeader(http.StatusNotModified)
-				return nil
-			}
-		}
-
-		if ifModifiedSince := req.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
-			if t, err := time.Parse(http.TimeFormat, ifModifiedSince); err == nil {
-				if !lastModified.After(t) {
-					w.WriteHeader(http.StatusNotModified)
-					return nil
-				}
-			}
-		}
+	if s.cacheHeaders(w, req, feedKey(req, urlPath, html), modTime) {
+		return nil
 	}
 
-	if s.EnableHTML && isBrowser(req) {
+	if html {
 		return s.renderHTML(w, req, catalog)
 	}
 
@@ -699,7 +786,7 @@ func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	content = append([]byte(xml.Header), content...)
-	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
+	http.ServeContent(w, req, "feed.xml", lastModified, bytes.NewReader(content))
 
 	return nil
 }
@@ -769,21 +856,30 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 	catalog.PageSize = pageSize
 	catalog.Entries = catalog.Entries[start:end]
 
+	if s.NoCache {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Expires", "0")
+	}
+
+	if s.EnableHTML {
+		w.Header().Add("Vary", "Accept")
+	}
+
 	if s.EnableHTML && isBrowser(req) {
 		return s.renderHTML(w, req, catalog)
 	}
 
 	navFeed := s.makeFeed(catalog, req)
-		navFeed.Opds = "http://opds-spec.org/2010/catalog"
-		acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/"}
-		content, err := xml.MarshalIndent(acFeed, "  ", "    ")
-		if err != nil {
-			return err
-		}
+	navFeed.Opds = "http://opds-spec.org/2010/catalog"
+	acFeed := &opds.AcquisitionFeed{Feed: &navFeed, Dc: "http://purl.org/dc/terms/"}
+	content, err := xml.MarshalIndent(acFeed, "  ", "    ")
+	if err != nil {
+		return err
+	}
 
 	w.Header().Add("Content-Type", "application/atom+xml;profile=opds-catalog;kind=acquisition")
 	content = append([]byte(xml.Header), content...)
-	http.ServeContent(w, req, "feed.xml", TimeNow(), bytes.NewReader(content))
+	http.ServeContent(w, req, "feed.xml", time.Time{}, bytes.NewReader(content))
 	return nil
 }
 
@@ -832,7 +928,8 @@ func (s OPDS) CoverHandler(w http.ResponseWriter, req *http.Request) error {
 		return nil
 	}
 
-	if _, err := os.Stat(fPath); err != nil {
+	info, err := os.Stat(fPath)
+	if err != nil {
 		slog.Error("file stat error for cover", "error", err)
 		w.WriteHeader(http.StatusNotFound)
 		return nil
@@ -850,8 +947,15 @@ func (s OPDS) CoverHandler(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Cache-Control", "max-age=86400")
-	http.ServeContent(w, req, "cover", TimeNow(), bytes.NewReader(coverData))
+	var serveModTime time.Time
+	if s.NoCache {
+		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Add("Expires", "0")
+	} else {
+		w.Header().Set("Cache-Control", "max-age=86400")
+		serveModTime = httpModTime(effectiveModTime(info.ModTime())).UTC()
+	}
+	http.ServeContent(w, req, "cover", serveModTime, bytes.NewReader(coverData))
 	return nil
 }
 
@@ -935,7 +1039,7 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 	feedBuilder := opds.FeedBuilder.
 		ID(catalog.ID).
 		Title(catalog.Title).
-		Updated(TimeNow()).
+		Updated(feedUpdated(catalog)).
 		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build()).
 		AddLink(opds.LinkBuilder.Rel("self").Href(s.joinURL(req.URL.Path)).Type(feedType).Build())
 

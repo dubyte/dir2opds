@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Truthful `Last-Modified` and `<updated>` on feeds (#71)** — Catalog feeds and HTML views now derive `Last-Modified` (floored at process start and clamped to current time) and Atom `<updated>` from the directory's newest entry modification time instead of freezing the process start time for the lifetime of the server. Clients such as KOReader now invalidate their cache as soon as books are added, removed, or renamed.
+- **Query and format-aware `ETag` (#71)** — Feed ETags now include the full query string (`sort`, `page`, `complete`) and format variant (`xml` vs `html`), preventing cross-variant `304 Not Modified` collisions. `If-None-Match` now takes precedence over `If-Modified-Since` per RFC 9110 §13.2.2.
+- **Cover and `-no-cache` caching** — `/cover` responses now use the EPUB file's modification time for `Last-Modified`, and `-no-cache` takes precedence over `-enable-cache`, omitting `ETag`/`Last-Modified` and suppressing `304 Not Modified` across feeds, HTML views, search, and covers.
+- **`Vary: Accept` with `-enable-html`** — Feed and search responses now send `Vary: Accept` so shared caches don't serve the HTML view to OPDS clients (or vice versa).
+
+### Changed
+
+- **Search feeds omit `Last-Modified` and `ETag`** — Dynamic search results no longer emit cache validators so deletions or renames cannot produce stale cached results.
+- **Weak ETags** — Feed `ETag` headers now use the weak `W/"..."` format and weak comparison so they remain valid across gzip and identity encodings.
+
 ## [1.11.0] - 2026-09-04
 
 ### Added

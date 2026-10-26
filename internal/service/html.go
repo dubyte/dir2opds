@@ -1,12 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 )
 
 const htmlTemplate = `
@@ -296,7 +298,7 @@ func (s OPDS) renderHTML(w http.ResponseWriter, req *http.Request, catalog *Cata
 		}
 
 		href := (&url.URL{Path: entryPath}).String()
-		
+
 		var coverURL string
 		if s.ExtractMetadata && entry.CoverPath != "" && entry.Type == pathTypeFile {
 			coverURL = "/cover?file=" + url.QueryEscape(entryPath)
@@ -319,8 +321,19 @@ func (s OPDS) renderHTML(w http.ResponseWriter, req *http.Request, catalog *Cata
 		data.NextPageURL = buildPageURL(req.URL.Path, req.URL.Query(), data.CurrentPage+1)
 	}
 
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	var serveModTime time.Time
+	if !s.NoCache && !catalog.ModTime.IsZero() {
+		serveModTime = httpModTime(effectiveModTime(catalog.ModTime)).UTC()
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return tmpl.Execute(w, data)
+	http.ServeContent(w, req, "index.html", serveModTime, bytes.NewReader(buf.Bytes()))
+	return nil
 }
 
 func formatSize(size int64) string {
