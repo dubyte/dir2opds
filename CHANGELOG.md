@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-25
+
 ### Fixed
 
 - **Truthful `Last-Modified` and `<updated>` on feeds (#71)** — Catalog feeds and HTML views now derive `Last-Modified` (floored at process start and clamped to current time) and Atom `<updated>` from the directory's newest entry modification time instead of freezing the process start time for the lifetime of the server. Clients such as KOReader now invalidate their cache as soon as books are added, removed, or renamed.
