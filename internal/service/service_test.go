@@ -625,46 +625,7 @@ func TestSearchFeedHasNoLastModified(t *testing.T) {
 	assert.Contains(t, string(body), "<updated>2026-03-01T09:00:00+00:00</updated>")
 }
 
-func TestETagVariesBySort(t *testing.T) {
-	nowFn := service.TimeNow
-	defer func() {
-		service.TimeNow = nowFn
-	}()
-
-	service.TimeNow = func() time.Time {
-		return time.Date(2020, 5, 25, 0, 0, 0, 0, time.UTC)
-	}
-
-	s := service.OPDS{
-		TrustedRoot:      "testdata",
-		HideCalibreFiles: true,
-		HideDotFiles:     true,
-		EnableCache:      true,
-	}
-
-	wName := httptest.NewRecorder()
-	reqName := httptest.NewRequest(http.MethodGet, "/?sort=name", nil)
-	require.NoError(t, s.Handler(wName, reqName))
-	etagName := wName.Result().Header.Get("ETag")
-	require.NotEmpty(t, etagName)
-
-	wDate := httptest.NewRecorder()
-	reqDate := httptest.NewRequest(http.MethodGet, "/?sort=date", nil)
-	require.NoError(t, s.Handler(wDate, reqDate))
-	etagDate := wDate.Result().Header.Get("ETag")
-	require.NotEmpty(t, etagDate)
-
-	assert.NotEqual(t, etagName, etagDate, "sort variants must have distinct ETags")
-
-	// Cross-variant If-None-Match must return 200, not 304
-	wCross := httptest.NewRecorder()
-	reqCross := httptest.NewRequest(http.MethodGet, "/?sort=date", nil)
-	reqCross.Header.Set("If-None-Match", etagName)
-	require.NoError(t, s.Handler(wCross, reqCross))
-	assert.Equal(t, http.StatusOK, wCross.Result().StatusCode)
-}
-
-func TestETagVariesByVariant(t *testing.T) {
+func TestETagVariesByRequest(t *testing.T) {
 	nowFn := service.TimeNow
 	defer func() {
 		service.TimeNow = nowFn
@@ -682,28 +643,49 @@ func TestETagVariesByVariant(t *testing.T) {
 		EnableHTML:       true,
 	}
 
-	wXML := httptest.NewRecorder()
-	reqXML := httptest.NewRequest(http.MethodGet, "/", nil)
-	require.NoError(t, s.Handler(wXML, reqXML))
-	etagXML := wXML.Result().Header.Get("ETag")
-	require.NotEmpty(t, etagXML)
+	tests := map[string]struct {
+		targetA, acceptA string
+		targetB, acceptB string
+	}{
+		"sort": {
+			targetA: "/?sort=name",
+			targetB: "/?sort=date",
+		},
+		"html vs xml": {
+			targetA: "/",
+			targetB: "/",
+			acceptB: "text/html",
+		},
+	}
 
-	wHTML := httptest.NewRecorder()
-	reqHTML := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqHTML.Header.Set("Accept", "text/html")
-	require.NoError(t, s.Handler(wHTML, reqHTML))
-	etagHTML := wHTML.Result().Header.Get("ETag")
-	require.NotEmpty(t, etagHTML)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			get := func(target, accept, ifNoneMatch string) *http.Response {
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest(http.MethodGet, target, nil)
+				if accept != "" {
+					req.Header.Set("Accept", accept)
+				}
+				if ifNoneMatch != "" {
+					req.Header.Set("If-None-Match", ifNoneMatch)
+				}
+				require.NoError(t, s.Handler(w, req))
+				return w.Result()
+			}
 
-	assert.NotEqual(t, etagXML, etagHTML, "HTML and XML responses must have distinct ETags")
+			respA := get(tc.targetA, tc.acceptA, "")
+			etagA := respA.Header.Get("ETag")
+			require.NotEmpty(t, etagA)
+			assert.Contains(t, respA.Header.Values("Vary"), "Accept")
 
-	// Cross-variant If-None-Match must return 200, not 304
-	wCross := httptest.NewRecorder()
-	reqCross := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqCross.Header.Set("Accept", "text/html")
-	reqCross.Header.Set("If-None-Match", etagXML)
-	require.NoError(t, s.Handler(wCross, reqCross))
-	assert.Equal(t, http.StatusOK, wCross.Result().StatusCode)
+			etagB := get(tc.targetB, tc.acceptB, "").Header.Get("ETag")
+			require.NotEmpty(t, etagB)
+			assert.NotEqual(t, etagA, etagB, "variants must have distinct ETags")
+
+			// Cross-variant If-None-Match must return 200, not 304
+			assert.Equal(t, http.StatusOK, get(tc.targetB, tc.acceptB, etagA).StatusCode)
+		})
+	}
 }
 
 func TestSubSecondEditInvalidatesETag(t *testing.T) {

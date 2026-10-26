@@ -164,7 +164,7 @@ Expires: 0
 
 ### `-enable-cache` — Enable ETag and Early Conditional Requests
 
-Adds weak `ETag` headers and evaluates conditional requests (`If-None-Match` and `If-Modified-Since`) before marshaling feed XML or rendering HTML. Useful for:
+Adds weak `ETag` headers and evaluates conditional requests (`If-None-Match` and `If-Modified-Since`) before marshaling feed XML or rendering HTML. The directory is still scanned (including metadata extraction with `-extract-metadata`) to compute its modification time. Useful for:
 - Large libraries where skipping XML/HTML serialization on `304 Not Modified` saves CPU and bandwidth
 - Sub-second edits or query-specific caching (`?sort=`, `?page=`, `?complete=true`, HTML vs XML)
 - Mobile clients on metered connections
@@ -185,11 +185,17 @@ If-None-Match: W/"<hash>"
 If-Modified-Since: <timestamp>
 ```
 
-If the catalog hasn't changed, the server responds immediately with `304 Not Modified` (no body), saving bandwidth.
+If the catalog hasn't changed, the server responds with `304 Not Modified` (no body), saving bandwidth.
+
+When `-enable-html` is set, feed and search responses include `Vary: Accept`, since the same URL serves HTML to browsers and OPDS XML to readers.
 
 ### Combining Flags
 
 If both `-no-cache` and `-enable-cache` are passed, `-no-cache` takes precedence: no `ETag` or `Last-Modified` headers are sent and `304 Not Modified` is never returned.
+
+### Known Limitation: Preserved Timestamps
+
+Change detection relies on directory and file modification times. Tools that preserve timestamps when copying (e.g. `rsync -a`, `cp -p`) may set a directory's mtime to an older value than the server start time, so `Last-Modified` does not advance and clients may receive a stale `304 Not Modified` until the server restarts. Use `-no-cache`, restart the server after syncing, or run `touch` on the affected directory.
 
 ---
 

@@ -111,7 +111,10 @@ func isFile(e IsDirer) bool {
 const navigationType = "application/atom+xml;profile=opds-catalog;kind=navigation"
 
 var (
-	TimeNow   = timeNowFunc()
+	// TimeNow returns the process start time. It is used as the floor for
+	// Last-Modified so restarts invalidate client caches. Overridable in tests.
+	TimeNow = timeNowFunc()
+	// wallClock returns the real current time, used to clamp future mtimes.
 	wallClock = time.Now
 )
 
@@ -136,11 +139,16 @@ func httpModTime(t time.Time) time.Time {
 	return truncated
 }
 
+// feedUpdated returns the Atom <updated> value: the catalog modtime clamped to
+// the wall clock, or the process start time when the modtime is unknown.
 func feedUpdated(catalog *Catalog) time.Time {
-	if catalog != nil && !catalog.ModTime.IsZero() {
-		return catalog.ModTime.UTC()
+	if catalog == nil || catalog.ModTime.IsZero() {
+		return TimeNow().UTC()
 	}
-	return TimeNow().UTC()
+	if now := wallClock(); catalog.ModTime.After(now) {
+		return now.UTC()
+	}
+	return catalog.ModTime.UTC()
 }
 
 // Scan inspects the directory and builds a Catalog model
@@ -212,7 +220,18 @@ func weakETagMatches(ifNoneMatch, target string) bool {
 	return false
 }
 
+// cacheHeaders sets caching headers and reports whether a 304 was written.
+//
+// With -enable-cache it evaluates conditional requests early so a 304 can skip
+// XML marshaling / HTML rendering. http.ServeContent repeats the same checks
+// later with the same Last-Modified value, so the two paths must stay in sync.
+// Note that Scan (including metadata extraction) has already run by now.
 func (s OPDS) cacheHeaders(w http.ResponseWriter, req *http.Request, key string, modTime time.Time) bool {
+	if s.EnableHTML {
+		// The same URL serves HTML or XML depending on Accept.
+		w.Header().Add("Vary", "Accept")
+	}
+
 	if s.NoCache {
 		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Add("Expires", "0")
@@ -840,6 +859,10 @@ func (s OPDS) SearchHandler(w http.ResponseWriter, req *http.Request) error {
 	if s.NoCache {
 		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Add("Expires", "0")
+	}
+
+	if s.EnableHTML {
+		w.Header().Add("Vary", "Accept")
 	}
 
 	if s.EnableHTML && isBrowser(req) {

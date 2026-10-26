@@ -336,6 +336,16 @@ func TestFeedUpdatedFallsBackToTimeNow(t *testing.T) {
 	assert.Equal(t, catTime.UTC(), feedUpdated(&Catalog{ModTime: catTime}), "non-zero ModTime returned in UTC without process-start floor")
 }
 
+func TestFeedUpdatedClampsFutureModTime(t *testing.T) {
+	origClock := wallClock
+	defer func() { wallClock = origClock }()
+
+	fixedNow := time.Date(2026, 6, 15, 12, 0, 5, 0, time.UTC)
+	wallClock = func() time.Time { return fixedNow }
+
+	assert.Equal(t, fixedNow, feedUpdated(&Catalog{ModTime: fixedNow.Add(time.Hour)}), "future ModTime clamped to wallClock")
+}
+
 func TestExtractEpubCover(t *testing.T) {
 	t.Run("Valid EPUB", func(t *testing.T) {
 		path := filepath.Join("testdata", "mybook", "mybook.epub")
