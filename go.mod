@@ -1,18 +1,18 @@
 module github.com/dubyte/dir2opds
 
-go 1.25.3
+go 1.26.0
+
+toolchain go1.27.4
 
 require (
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0
-	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.58.0
+	github.com/stretchr/testify v1.12.1
+	golang.org/x/net v0.63.0
 	rsc.io/pdf v0.1.1
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	go.yaml.in/yaml/v3 v3.0.6 // indirect
+	golang.org/x/text v0.44.0 // indirect
 )
