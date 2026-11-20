@@ -50,7 +50,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/books"
           docker run -d --name verify -p 8080:8080 -v "$RUNNER_TEMP/books:/books" \
-            "ghcr.io/${{ github.repository }}/dir2opds:${{ github.ref_name }}"
+            "ghcr.io/${{ github.repository_owner }}/dir2opds:${{ github.ref_name }}"
           for i in $(seq 1 20); do
             if curl -fsS http://localhost:8080/health; then exit 0; fi
             sleep 1

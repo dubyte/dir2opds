@@ -1,0 +1,6 @@
+.git
+# local build output (gitignored, but still in the build context otherwise)
+dir2opds
+bin/
+# agent/tooling caches that can be present in a working copy
+.opencode/

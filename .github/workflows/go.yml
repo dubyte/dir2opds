@@ -16,7 +16,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        # reads the toolchain directive, so CI always matches go.mod
+        # uses go.mod's go directive, so CI always matches go.mod
         go-version-file: go.mod
 
     - name: Vet
@@ -43,7 +43,7 @@ jobs:
 
     - name: Run govulncheck
       continue-on-error: true
-      run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      run: go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
 
   # The release image is only built on tag, so a broken Containerfile or a
   # runtime-incompatible base image would otherwise ship untested.

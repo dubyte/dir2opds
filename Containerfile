@@ -1,6 +1,6 @@
 # Stage 1: Build
-# Keep this version in sync with the toolchain line in go.mod: the golang image
-# sets GOTOOLCHAIN=local, so a go.mod requiring a newer toolchain fails here.
+# Keep this version in sync with the go line in go.mod: the golang image sets
+# GOTOOLCHAIN=local, so a go.mod requiring a newer Go fails here.
 FROM docker.io/golang:1.27.4-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
