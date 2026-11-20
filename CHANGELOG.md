@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release build for Windows 32-bit ARM** — the Go toolchain no longer supports the `windows/arm` port, so GoReleaser failed the v1.12.1 release with `-buildmode=exe not supported on windows/arm`. That target is now excluded, like `windows/arm64` already was; Windows releases are `windows/386` and `windows/amd64`.
+
 ## [1.12.1] - 2026-11-19
 
 ### Changed
