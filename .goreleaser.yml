@@ -32,6 +32,9 @@ builds:
         goarch: 386
       - goos: windows
         goarch: arm64
+      # Go dropped the windows/arm port; `go tool dist list` no longer lists it.
+      - goos: windows
+        goarch: arm
 
 archives:
   -
