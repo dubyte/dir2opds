@@ -29,10 +29,10 @@ jobs:
       run: go test -v ./...
 
   # Report known module/GO vulnerabilities before someone finds them in a scan.
-  # Non-blocking: rsc.io/pdf GO-2026-5781 has no fixed version.
+  # Non-blocking: rsc.io/pdf GO-2026-5781 has no fixed version, so a failing
+  # job would just block every merge. Findings stay visible in the step log.
   vulncheck:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
 
@@ -42,6 +42,7 @@ jobs:
         go-version-file: go.mod
 
     - name: Run govulncheck
+      continue-on-error: true
       run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
   # The release image is only built on tag, so a broken Containerfile or a
