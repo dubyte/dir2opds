@@ -11,6 +11,9 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o /app/dir2opds
 
 # Stage 2: Final Image
+# No libc, shell, ca-certificates or /tmp here: the binary must stay static, and
+# it must not need outbound HTTPS, user lookup or temp files. Certs and /tmp
+# would have to be copied in before any of those are added.
 FROM scratch
 COPY --from=builder /app/dir2opds /dir2opds
 ENTRYPOINT ["/dir2opds"]

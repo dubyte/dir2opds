@@ -643,6 +643,9 @@ func findEpubCover(r *zip.ReadCloser, items []struct {
 }
 
 func extractPdfMetadata(path string) (string, string, string, []string) {
+	// Known unfixable: rsc.io/pdf GO-2026-5781 (stack-overflow DoS, no patched
+	// version). Accepted because the path only parses files the operator put in
+	// the served directory. A recover() cannot catch it; replaces the dep.
 	reader, err := pdf.Open(path)
 	if err != nil {
 		return "", "", "", nil
