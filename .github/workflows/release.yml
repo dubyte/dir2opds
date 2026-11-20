@@ -45,4 +45,16 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Verify published image
+        run: |
+          mkdir -p "$RUNNER_TEMP/books"
+          docker run -d --name verify -p 8080:8080 -v "$RUNNER_TEMP/books:/books" \
+            "ghcr.io/${{ github.repository }}/dir2opds:${{ github.ref_name }}"
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs verify
+          exit 1
 

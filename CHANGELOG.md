@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **CI now builds and smoke-tests the container image** on every PR, and runs `go vet` and `govulncheck`. Previously the image was only built on tag push, and dependency vulnerabilities were only found by a third party running an external scanner.
+- **CI now builds and smoke-tests the container image** on every PR and verifies the published image after each release, and runs `go vet` and `govulncheck`. Previously the image was only built and pushed on tag, unverified, and dependency vulnerabilities were only found by a third party running an external scanner.
 
 ## [1.12.0] - 2026-10-25
 
