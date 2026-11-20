@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Container image is `scratch`-based** — the published image holds only the statically linked binary: no shell, no package manager, and no OS packages left for scanners to flag (clears the 6 critical / 36 high image findings). Building it no longer relies on the builder image lacking a C compiler. `docker exec … sh` is unavailable now; use the flags and `/health` instead.
+- **Go 1.27.4** — module and build toolchain bumped, dependencies updated (`testify` 1.12.1, `x/net` 0.63.0).
+
+### Fixed
+
+- **CI now builds and smoke-tests the container image** on every PR, and runs `go vet` and `govulncheck`. Previously the image was only built on tag push, and dependency vulnerabilities were only found by a third party running an external scanner.
+
 ## [1.12.0] - 2026-10-25
 
 ### Fixed

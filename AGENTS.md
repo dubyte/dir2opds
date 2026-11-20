@@ -52,7 +52,7 @@ make clean
 ### General Go Conventions
 - Follow standard Go formatting (`go fmt`)
 - Pass `go vet` without warnings
-- Use Go 1.25.3+ (see go.mod)
+- Use Go 1.27.4+ (see go.mod)
 - Maximum line length: aim for readability, no strict limit
 
 ### Imports
