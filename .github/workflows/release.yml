@@ -20,9 +20,9 @@ jobs:
           fetch-depth: 0
       -
         name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
-          go-version: 1.25
+          go-version-file: go.mod
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,4 +45,16 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Verify published image
+        run: |
+          mkdir -p "$RUNNER_TEMP/books"
+          docker run -d --name verify -p 8080:8080 -v "$RUNNER_TEMP/books:/books" \
+            "ghcr.io/${{ github.repository_owner }}/dir2opds:${{ github.ref_name }}"
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs verify
+          exit 1
 
