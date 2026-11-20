@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-11-19
+
 ### Changed
 
 - **Container image is `scratch`-based** — the published image holds only the statically linked binary: no shell, no package manager, and no OS packages left for scanners to flag (clears the 6 critical / 36 high image findings). Building it no longer relies on the builder image lacking a C compiler. `docker exec … sh` is unavailable now; use the flags and `/health` instead.
