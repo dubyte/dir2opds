@@ -67,7 +67,7 @@ podman run \
   ghcr.io/dubyte/dir2opds:v1.12.1
 ```
 
-Add `-debug` for request logging, e.g. `... ghcr.io/dubyte/dir2opds:v1.12.1 /dir2opds -debug`.
+Add `-debug` for request logging, e.g. `... ghcr.io/dubyte/dir2opds:v1.12.1 -debug`.
 
 ## Raspberry Pi (binary + systemd)
 
