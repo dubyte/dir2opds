@@ -700,11 +700,8 @@ func isBrowser(r *http.Request) bool {
 // returns a Navigation Feed when the entries are other folders
 func (s OPDS) Handler(w http.ResponseWriter, req *http.Request) error {
 	var err error
-	urlPath, err := url.PathUnescape(req.URL.Path)
-	if err != nil {
-		slog.Error("error unescaping path", "urlPath", req.URL.Path, "error", err)
-		return err
-	}
+	// net/http has already decoded the path
+	urlPath := req.URL.Path
 
 	fPath := filepath.Join(s.TrustedRoot, urlPath)
 
@@ -916,16 +913,11 @@ func (s OPDS) CoverHandler(w http.ResponseWriter, req *http.Request) error {
 		return fmt.Errorf("missing file parameter")
 	}
 
-	urlPath, err := url.PathUnescape(filePath)
-	if err != nil {
-		slog.Error("error unescaping cover path", "filePath", filePath, "error", err)
-		return err
-	}
-
-	fPath := filepath.Join(s.TrustedRoot, urlPath)
+	// Query().Get has already decoded the value
+	fPath := filepath.Join(s.TrustedRoot, filePath)
 
 	// verifyPath avoid the http transversal by checking the path is under TrustedRoot
-	_, err = verifyPath(fPath, s.TrustedRoot)
+	_, err := verifyPath(fPath, s.TrustedRoot)
 	if err != nil {
 		slog.Error("verify path error for cover", "error", err)
 		w.WriteHeader(http.StatusNotFound)
