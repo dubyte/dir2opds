@@ -1045,10 +1045,10 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 		Title(catalog.Title).
 		Updated(feedUpdated(catalog)).
 		AddLink(opds.LinkBuilder.Rel("start").Href(s.joinURL("/")).Type(navigationType).Build()).
-		AddLink(opds.LinkBuilder.Rel("self").Href(s.joinURL(req.URL.Path)).Type(feedType).Build())
+		AddLink(opds.LinkBuilder.Rel("self").Href(s.joinURL(req.URL.EscapedPath())).Type(feedType).Build())
 
 	if req.URL.Path != "/" && req.URL.Path != "" {
-		parentPath := path.Dir(req.URL.Path)
+		parentPath := (&url.URL{Path: path.Dir(req.URL.Path)}).EscapedPath()
 		if parentPath == "." {
 			parentPath = "/"
 		}
@@ -1083,7 +1083,7 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 
 	if !s.NoPagination && catalog.Total > catalog.PageSize {
 		totalPages := (catalog.Total + catalog.PageSize - 1) / catalog.PageSize
-		basePath := req.URL.Path
+		basePath := req.URL.EscapedPath()
 		query := req.URL.Query()
 
 		if catalog.Page > 1 {
@@ -1115,7 +1115,7 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 	if !s.NoPagination && catalog.Total > catalog.PageSize {
 		crawlableQuery := cloneURLValues(req.URL.Query())
 		crawlableQuery.Set("complete", "true")
-		crawlableURL := req.URL.Path + "?" + crawlableQuery.Encode()
+		crawlableURL := req.URL.EscapedPath() + "?" + crawlableQuery.Encode()
 		feedBuilder = feedBuilder.AddLink(opds.LinkBuilder.
 			Rel("http://opds-spec.org/crawlable").
 			Href(s.joinURL(crawlableURL)).
@@ -1129,7 +1129,7 @@ func (s OPDS) makeFeed(catalog *Catalog, req *http.Request) opds.Feed {
 			{"Date", "date"},
 			{"Size", "size"},
 		}
-		basePath := req.URL.Path
+		basePath := req.URL.EscapedPath()
 		query := req.URL.Query()
 		for _, opt := range sortOptions {
 			facetQuery := cloneURLValues(query)
