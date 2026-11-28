@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.3] - 2026-11-28
+
+### Fixed
+
+- **Books and folders with `%` in their names (#79)** — `Handler` and `CoverHandler` no longer call `url.PathUnescape` on `req.URL.Path` and `req.URL.Query().Get("file")`, which `net/http` has already decoded. Previously, a literal `%` followed by non-hex characters (e.g. `Top 10% Tips.epub` or a `100% Pure` folder) returned HTTP 500, and `%` followed by hex digits (e.g. `%20`) resolved to the wrong path.
+- **Escaped folder paths in feed and HTML navigation links (#80)** — OPDS feed navigation links (`self`, `up`, `first`, `previous`, `next`, `last`, `crawlable`, and sort `facet` links) and HTML view breadcrumbs and pagination links now use the URL-escaped path instead of the decoded path, fixing broken links for folders containing `#`, `?`, or spaces (e.g. `C# Programming`).
+
 ## [1.12.2] - 2026-11-20
 
 ### Fixed
