@@ -283,7 +283,7 @@ func (s OPDS) renderHTML(w http.ResponseWriter, req *http.Request, catalog *Cata
 			current += "/" + part
 			data.Breadcrumbs = append(data.Breadcrumbs, Breadcrumb{
 				Name: part,
-				Path: current,
+				Path: (&url.URL{Path: current}).EscapedPath(),
 			})
 		}
 	}
@@ -315,10 +315,10 @@ func (s OPDS) renderHTML(w http.ResponseWriter, req *http.Request, catalog *Cata
 
 	// Pagination
 	if data.CurrentPage > 1 {
-		data.PrevPageURL = buildPageURL(req.URL.Path, req.URL.Query(), data.CurrentPage-1)
+		data.PrevPageURL = buildPageURL(req.URL.EscapedPath(), req.URL.Query(), data.CurrentPage-1)
 	}
 	if data.CurrentPage < data.TotalPages {
-		data.NextPageURL = buildPageURL(req.URL.Path, req.URL.Query(), data.CurrentPage+1)
+		data.NextPageURL = buildPageURL(req.URL.EscapedPath(), req.URL.Query(), data.CurrentPage+1)
 	}
 
 	var buf bytes.Buffer

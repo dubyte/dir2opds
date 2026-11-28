@@ -964,3 +964,40 @@ func TestHandlerServesNamesWithPercent(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Result().StatusCode)
 	assert.Equal(t, "tips", w.Body.String())
 }
+
+func TestFeedLinksEscapeFolderName(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "C# Programming")
+	require.NoError(t, os.Mkdir(dir, 0o755))
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(name), 0o644))
+	}
+	s := service.OPDS{TrustedRoot: root, NoCache: true, PageSize: 2}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/C%23%20Programming", nil)
+
+	require.NoError(t, s.Handler(w, req))
+
+	body := w.Body.String()
+	assert.Contains(t, body, `href="/C%23%20Programming?page=2"`)
+	assert.NotContains(t, body, `href="/C# Programming`)
+}
+
+func TestHTMLLinksEscapeFolderName(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "C# Programming")
+	require.NoError(t, os.Mkdir(dir, 0o755))
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(name), 0o644))
+	}
+	s := service.OPDS{TrustedRoot: root, NoCache: true, PageSize: 2, EnableHTML: true}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/C%23%20Programming", nil)
+	req.Header.Set("Accept", "text/html")
+
+	require.NoError(t, s.Handler(w, req))
+
+	body := w.Body.String()
+	assert.Contains(t, body, `href="/C%23%20Programming?page=2"`)
+	assert.NotContains(t, body, `href="/C#`)
+}
