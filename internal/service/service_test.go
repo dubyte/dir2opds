@@ -951,3 +951,16 @@ func TestHTMLCaching(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w2.Result().StatusCode)
 	})
 }
+
+func TestHandlerServesNamesWithPercent(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "Top 10% Tips.txt"), []byte("tips"), 0o644))
+	s := service.OPDS{TrustedRoot: root, NoCache: true}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/Top%2010%25%20Tips.txt", nil)
+
+	require.NoError(t, s.Handler(w, req))
+
+	require.Equal(t, http.StatusOK, w.Result().StatusCode)
+	assert.Equal(t, "tips", w.Body.String())
+}
