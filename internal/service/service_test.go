@@ -955,49 +955,89 @@ func TestHTMLCaching(t *testing.T) {
 func TestHandlerServesNamesWithPercent(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "Top 10% Tips.txt"), []byte("tips"), 0o644))
+	writeTestEpubWithCover(t, filepath.Join(root, "Top 10% Tips.epub"))
 	s := service.OPDS{TrustedRoot: root, NoCache: true}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/Top%2010%25%20Tips.txt", nil)
 
-	require.NoError(t, s.Handler(w, req))
+	t.Run("Handler serves file with percent in name", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/Top%2010%25%20Tips.txt", nil)
 
-	require.Equal(t, http.StatusOK, w.Result().StatusCode)
-	assert.Equal(t, "tips", w.Body.String())
+		require.NoError(t, s.Handler(w, req))
+
+		require.Equal(t, http.StatusOK, w.Result().StatusCode)
+		assert.Equal(t, "tips", w.Body.String())
+	})
+
+	t.Run("CoverHandler serves cover for file with percent in name", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/cover?file=%2FTop+10%25+Tips.epub", nil)
+
+		require.NoError(t, s.CoverHandler(w, req))
+
+		require.Equal(t, http.StatusOK, w.Result().StatusCode)
+		assert.Equal(t, "image/jpeg", w.Result().Header.Get("Content-Type"))
+	})
 }
 
 func TestFeedLinksEscapeFolderName(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "C# Programming")
-	require.NoError(t, os.Mkdir(dir, 0o755))
+	subDir := filepath.Join(dir, "Part 1")
+	require.NoError(t, os.MkdirAll(subDir, 0o755))
 	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(name), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(subDir, name), []byte(name), 0o644))
 	}
 	s := service.OPDS{TrustedRoot: root, NoCache: true, PageSize: 2}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/C%23%20Programming", nil)
 
-	require.NoError(t, s.Handler(w, req))
+	t.Run("self, pagination, crawlable and facet links are escaped", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/C%23%20Programming", nil)
 
-	body := w.Body.String()
-	assert.Contains(t, body, `href="/C%23%20Programming?page=2"`)
-	assert.NotContains(t, body, `href="/C# Programming`)
+		require.NoError(t, s.Handler(w, req))
+
+		body := w.Body.String()
+		assert.Contains(t, body, `rel="self" href="/C%23%20Programming"`)
+		assert.Contains(t, body, `href="/C%23%20Programming?page=2"`)
+		assert.Contains(t, body, `href="/C%23%20Programming?complete=true"`)
+		assert.Contains(t, body, `href="/C%23%20Programming?sort=name"`)
+		assert.NotContains(t, body, `href="/C# Programming`)
+	})
+
+	t.Run("up link escapes parent folder name", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/C%23%20Programming/Part%201", nil)
+
+		require.NoError(t, s.Handler(w, req))
+
+		body := w.Body.String()
+		assert.Contains(t, body, `rel="up" href="/C%23%20Programming"`)
+		assert.NotContains(t, body, `href="/C# Programming`)
+	})
 }
 
 func TestHTMLLinksEscapeFolderName(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "C# Programming")
-	require.NoError(t, os.Mkdir(dir, 0o755))
+	subDir := filepath.Join(dir, "Part 1")
+	require.NoError(t, os.MkdirAll(subDir, 0o755))
 	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(name), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(subDir, name), []byte(name), 0o644))
 	}
 	s := service.OPDS{TrustedRoot: root, NoCache: true, PageSize: 2, EnableHTML: true}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/C%23%20Programming", nil)
-	req.Header.Set("Accept", "text/html")
 
-	require.NoError(t, s.Handler(w, req))
+	t.Run("pagination and breadcrumb links are escaped", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/C%23%20Programming/Part%201", nil)
+		req.Header.Set("Accept", "text/html")
 
-	body := w.Body.String()
-	assert.Contains(t, body, `href="/C%23%20Programming?page=2"`)
-	assert.NotContains(t, body, `href="/C#`)
+		require.NoError(t, s.Handler(w, req))
+
+		body := w.Body.String()
+		assert.Contains(t, body, `<a href="/C%23%20Programming">C# Programming</a>`)
+		assert.Contains(t, body, `<a href="/C%23%20Programming/Part%201">Part 1</a>`)
+		assert.Contains(t, body, `href="/C%23%20Programming/Part%201?page=2"`)
+		assert.NotContains(t, body, `href="/C#`)
+	})
 }
